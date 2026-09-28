@@ -439,7 +439,29 @@ var TEMPLATES=[
  tips:[{t:'蹲低仰拍',d:'低机位让地标更高大、人更显腿长，气势十足。'},{t:'竖线端正',d:'开水平仪，仰拍也别让主体歪斜。'}]},
 {id:'c_tele',name:'长焦压缩',mode:'打卡',kind:'scene',scheme:'horizon',hy:0.5,
  params:{focal:'等效 85–200mm（手机长焦/3–5×）',aperture:'f/4–f/5.6',shutter:'1/500s（长焦易抖）',iso:'ISO 100–800',height:'平视',distance:'远离地标',light:'顺侧光',time:'黄金时刻',wb:'自动'},
- tips:[{t:'退远用长焦',d:'长焦压缩空间，让人和地标"贴"在一起、背景更满，远胜自拍杆正面怼。'},{t:'端稳',d:'长焦放大抖动，快门要快、双手夹紧或用支撑。'}]}
+ tips:[{t:'退远用长焦',d:'长焦压缩空间，让人和地标"贴"在一起、背景更满，远胜自拍杆正面怼。'},{t:'端稳',d:'长焦放大抖动，快门要快、双手夹紧或用支撑。'}]},
+/* ---------------- 昆明专属打卡（本地实地机位） ---------------- */
+{id:'km_haigeng',name:'📍海埂大坝·落日剪影',mode:'打卡',kind:'scene',scheme:'horizon',hy:0.5,sun:[0.62,0.44],
+ params:{focal:'等效 24–50mm（长焦可把落日拍大）',aperture:'f/8',shutter:'1/250s',iso:'ISO 100',height:'平视或略低，贴近堤坝',distance:'人离镜 3–5m，背景是湖',light:'傍晚侧逆光/正逆光，太阳在人身后',time:'日落前30分钟 至 日落后20分钟蓝调',wb:'偏暖5500K保金色，或偏冷保蓝调'},
+ tips:[{t:'人做剪影',d:'让人背对落日站堤坝栏杆边，侧身眺望或抬臂；对天空最亮处测光并压暗曝光，人成纯黑轮廓、肢体线条要夸张清晰。'},{t:'10月没海鸥',d:'这季节滇池没有红嘴鸥，靠湖面落日+远山取胜；长焦把落日拍大，或广角收整条大坝天际线。'},{t:'穿搭跳色',d:'若想拍清人而非剪影，穿白/正红在灰蓝湖面前最跳；忌深蓝黑灰融进背景。'}]},
+{id:'km_shilin',name:'📍石林·拱门框人',mode:'打卡',kind:'scene',scheme:'frame',inset:0.18,subj:[0.5,0.55],
+ params:{focal:'等效 24–50mm',aperture:'f/5.6',shutter:'1/250s',iso:'ISO 100–400',height:'平视或略低',distance:'2–4m',light:'傍晚侧逆光勾岩壁；清晨薄雾柔光',time:'清晨薄雾 / 傍晚金光（正午顶光停拍人像）',wb:'日光'},
+ tips:[{t:'石窗拱门做框',d:'用小石林天然石拱门、石缝当画框把人框在中央，前后景深自然分割，远胜站石头前正面拍。'},{t:'避开人流',d:'进园先冲冷门的步哨山，别跟指示牌直奔大石林；正午12:00–14:30旅行团就餐时切剑峰池、莲花峰。'},{t:'衣服别撞岩石',d:'忌深灰、墨绿（和岩石同色），换白、浅黄、正红、浅蓝强反差；可租撒尼族刺绣长裙拍人文。'}]},
+{id:'km_xishan',name:'📍西山龙门·俯瞰滇池',mode:'打卡',kind:'scene',scheme:'negative',subj:[0.62,0.6],
+ params:{focal:'等效 24–50mm（广角收全景）',aperture:'f/8',shutter:'1/250s',iso:'ISO 100',height:'人立月台/石道边缘，机位平视',distance:'人近、滇池远景',light:'傍晚17点前后金光最佳',time:'上午9:00–10:30 或 15:00后避人流；傍晚金光',wb:'日光偏暖'},
+ tips:[{t:'石窗框半身',d:'慈云洞螺旋石道/石窗是王牌机位：人立通道中段，石窗做天然画框，半身与滇池全景同框，侧身对窗避免背景杂乱。'},{t:'大留白衬小人',d:'俯瞰滇池用大留白——湖面天空占七成，人作尺度参照站月台边，营造辽阔感。'},{t:'动线先上后下',d:'先到凌虚阁占制高点再沿坡向下，精力最好时完成核心构图。'}]},
+{id:'km_guandu',name:'📍官渡古镇·巷子纵深',mode:'打卡',kind:'scene',scheme:'leading',vp:[0.5,0.42],
+ params:{focal:'等效 24–35mm',aperture:'f/4–f/5.6',shutter:'1/125s',iso:'ISO 400–800（夜景提高）',height:'平视或略低',distance:'3–6m',light:'傍晚灯笼亮起的暖光',time:'傍晚–夜晚（官渡夜景最出片）',wb:'手动4000K保暖'},
+ tips:[{t:'青石板巷引导线',d:'用古巷青石板路、檐廊线条把视线引向纵深，人走在巷子里回眸或背影，比站牌坊正前方有故事感。'},{t:'夜景冷暖对比',d:'傍晚灯笼/店铺暖光亮起、天空尚蓝时拍，冷暖对比最出片；金刚塔、古牌坊打灯后做背景。'},{t:'牌坊做框',d:'古牌坊、门洞当前景框住人或塔，增加层次与窥视感。'}]},
+{id:'km_jinma',name:'📍金马碧鸡坊·夜景',mode:'打卡',kind:'scene',scheme:'frame',inset:0.16,subj:[0.5,0.55],
+ params:{focal:'等效 35–85mm（长焦压缩坊体）',aperture:'f/2.8–f/4',shutter:'1/60s（夜景靠稳防抖）',iso:'ISO 800–1600',height:'平视或略低仰拍',distance:'退到马路对面收全坊',light:'夜间坊体打灯+街道霓虹',time:'日落后蓝调时刻–夜晚',wb:'手动4000–4500K'},
+ tips:[{t:'坊下门洞框人',d:'人站金马碧鸡坊门洞下或坊前，用拱形门洞做框；或退到马路对面用长焦把坊和人压缩在一起。'},{t:'蓝调拍天际线',d:'日落后约20分钟天空宝蓝、坊灯已亮，冷暖对比最好看，别等到全黑。'},{t:'霓虹散景',d:'把南屏街霓虹/车灯虚化成光斑作前景，人侧身行走抓拍，城市夜色氛围拉满。'}]},
+{id:'km_cuihu',name:'📍翠湖·倒影对称',mode:'打卡',kind:'scene',scheme:'symmetry',refl:0.58,reflLabel:'水面倒影线',
+ params:{focal:'等效 24–50mm',aperture:'f/5.6–f/8',shutter:'1/125s',iso:'ISO 100–400',height:'机位贴近水面',distance:'2–4m',light:'上午柔光 / 阴天散射',time:'上午9–11点（无风时倒影最清晰）',wb:'日光'},
+ tips:[{t:'湖面倒影对称',d:'翠湖水面平静时拍倒影对称，人坐岸边石阶或走桥上，中轴对准、开水平仪别歪。'},{t:'柳枝做前景',d:'用垂柳枝条当前景虚化框住人和桥，增加层次、遮杂乱；桥侧身位比正对镜头好看。'},{t:'10月无鸥',d:'翠湖红嘴鸥也是冬季才有，10月靠柳、桥、亭、倒影构图。'}]},
+{id:'km_dounan',name:'📍斗南花市·花海留白',mode:'打卡',kind:'scene',scheme:'negative',subj:[0.6,0.62],
+ params:{focal:'等效 35–85mm',aperture:'f/2.8–f/4',shutter:'1/200s',iso:'ISO 100–400',height:'平视或俯拍花田',distance:'1.5–3m',light:'白天柔光 / 夜市暖灯',time:'白天拍花海，傍晚拍花市灯光',wb:'日光；夜市偏暖'},
+ tips:[{t:'花海大色块留白',d:'让成片花海当背景大色块，人抱花或站花田一角作尺度，画面留白有呼吸感，别又小又乱。'},{t:'花枝做前景',d:'贴近几枝花虚化成前景光斑，人景层次立刻丰富；花色艳时穿白/米杏最衬。'},{t:'夜市氛围',d:'斗南晚上是花市/拍卖，暖色灯串虚化作前景，人景互动（挑花、抱花）更生动。'}]}
 ];
 
 var PARAM_LABELS=[['focal','等效焦段'],['aperture','光圈'],['shutter','快门'],['iso','ISO'],['height','机位高度'],['distance','拍摄距离'],['light','光线'],['time','最佳时段'],['wb','白平衡']];
@@ -868,7 +890,8 @@ var ANIM_FOR={stand:'lowcam',half:'eye',lean:'lean',sit:'sit',walk:'walk',couple
  l_hori:'horizon',l_lead:'leading',l_refl:'sym',l_neg:'neg',
  a_axis:'sym',a_persp:'persp',a_frame:'frame',a_fill:'fill',
  n_blue:'horizon',n_refl:'sym',n_trail:'leading',n_bokeh:'bokeh',
- c_inter:'interact',c_frame:'frame',c_low:'lowcam',c_tele:'tele'};
+ c_inter:'interact',c_frame:'frame',c_low:'lowcam',c_tele:'tele',
+ km_haigeng:'horizon',km_shilin:'frame',km_xishan:'neg',km_guandu:'leading',km_jinma:'frame',km_cuihu:'sym',km_dounan:'neg'};
 function renderAnim(key,cls){
   var f=ANIMS[key];if(!f)return '';
   return '<svg class="'+(cls||'animSvg')+'" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid meet">'+f()+'</svg>';

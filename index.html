@@ -1054,7 +1054,7 @@ function analyze(canvas,mode){
     else add('ok','地平线基本水平。');
     if(on('horizon')){
       if(Math.abs(hpos-0.5)<0.08){score-=8;add('warn','地平线在画面正中间，容易平分。想突出天空压到下三分，突出地面/前景抬到上三分。');}
-      else if(Math.abs(hpos-1/3)<0.1||Math.abs(hpos-2/3)<0.1)add('ok','地平线贴近三分线，天地比例舒服。');}
+      else if(Math.abs(hpos-1/3)<0.1||Math.abs(hpos-2/3)<0.1)add('ok','地平线贴近三分线，天地比例舒服。');
     }
   }
 
@@ -1069,7 +1069,7 @@ function analyze(canvas,mode){
   if(on('clutter')){
     if(clutter>20){score-=8;add('warn','背景偏杂乱（边缘能量高）。杂乱背景是废片第一杀手——靠近主体、换角度或用大光圈/人像模式虚化。');}
     else if(clutter>=10){score-=3;add('info','背景略杂，留意"做减法"：能移走的杂物移走，或换角度/虚化来突出主体。');}
-    else if(clutter<7)add('ok','背景干净，主体突出。');}
+    else if(clutter<7)add('ok','背景干净，主体突出。');
   }
 
   // --- negative space (留白) ---
@@ -1202,3 +1202,91 @@ function fallbackHead(){
   for(var i=0,p=0;i<d.length;i+=4,p++){
     var r=d[i],g=d[i+1],b=d[i+2];
     var Y=0.299*r+0.587*g+0.114*b;
+    var Cb=128-0.168736*r-0.331264*g+0.5*b;
+    var Cr=128+0.5*r-0.418688*g-0.081312*b;
+    if(Cr>=133&&Cr<=173&&Cb>=77&&Cb<=127&&Y>50){mask[p]=1;n++;}
+  }
+  if(n<DW*DH*0.006)return null; // 肤色太少，认为没找到
+  // 4-连通标记，挑面积达标且最靠上的一块
+  var labels=new Int32Array(DW*DH), next=1, best=null;
+  var stack=new Int32Array(DW*DH);
+  for(var s=0;s<mask.length;s++){
+    if(!mask[s]||labels[s])continue;
+    var sp=0;stack[sp++]=s;labels[s]=next;
+    var cnt=0,sumX=0,sumY=0,minY=DH,maxY=0,minX=DW,maxX=0;
+    while(sp>0){
+      var cur=stack[--sp],cx=cur%DW,cy=(cur/DW)|0;
+      cnt++;sumX+=cx;sumY+=cy;
+      if(cy<minY)minY=cy;if(cy>maxY)maxY=cy;if(cx<minX)minX=cx;if(cx>maxX)maxX=cx;
+      if(cx>0){var a=cur-1;if(mask[a]&&!labels[a]){labels[a]=next;stack[sp++]=a;}}
+      if(cx<DW-1){var b2=cur+1;if(mask[b2]&&!labels[b2]){labels[b2]=next;stack[sp++]=b2;}}
+      if(cy>0){var c=cur-DW;if(mask[c]&&!labels[c]){labels[c]=next;stack[sp++]=c;}}
+      if(cy<DH-1){var e=cur+DW;if(mask[e]&&!labels[e]){labels[e]=next;stack[sp++]=e;}}
+    }
+    if(cnt>=DW*DH*0.006){
+      // 优先最靠上，其次面积大
+      if(!best||minY<best.minY-2||(Math.abs(minY-best.minY)<=2&&cnt>best.cnt))
+        best={cnt:cnt,minY:minY,x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
+    }
+    next++;
+  }
+  if(!best)return null;
+  var sx=video.videoWidth/DW, sy=video.videoHeight/DH;
+  return {x:best.x*sx,y:best.y*sy,width:best.w*sx,height:best.h*sy};
+}
+
+function rtLoop(ts){
+  if(!state.rtRunning)return;
+  requestAnimationFrame(rtLoop);
+  if(ts-lastRt<180)return; // ~5fps，省电省算力
+  lastRt=ts;
+  if(video.readyState<2||!state.template)return;
+  if(!state.useFD||!state.faceDetector){
+    var r=fallbackHead();
+    if(r)computeHint(videoToOverlay(r));
+    else setHint('warn','没找到脸/皮肤区域 · 让主体正对镜头、光线充足');
+    return;
+  }
+  state.faceDetector.detect(video).then(function(faces){
+    if(!state.rtRunning)return;
+    if(!faces||!faces.length){setHint('warn','没检测到脸 · 让主体正对镜头、光线充足');return;}
+    // 取面积最大的人脸
+    var f=faces[0],fa=faces[0].boundingBox.width*faces[0].boundingBox.height;
+    faces.forEach(function(x){var a=x.boundingBox.width*x.boundingBox.height;if(a>fa){fa=a;f=x;}});
+    computeHint(videoToOverlay(f.boundingBox));
+  }).catch(function(){/* 某些帧检测失败，忽略 */});
+}
+
+/* 把视频帧里的矩形映射到 overlay 的像素坐标（考虑 object-fit:cover 裁剪） */
+function videoToOverlay(rect){
+  var vw=video.videoWidth,vh=video.videoHeight;
+  var dispW=state.vw,dispH=state.vh;
+  var scale=Math.max(dispW/vw,dispH/vh);
+  var rendW=vw*scale,rendH=vh*scale;
+  var offX=(dispW-rendW)/2,offY=(dispH-rendH)/2;
+  var x=rect.x*scale+offX,y=rect.y*scale+offY,w=rect.width*scale;
+  return {cx:x+w/2,cy:y+rect.height*scale/2,w:w};
+}
+
+function computeHint(o){
+  var face=state.faceTargetPx;
+  if(!face){setHint('info','按剪影对齐主体即可');return;}
+  var u=Math.min(state.vw,state.vh);
+  var dx=o.cx-face.cx, dy=o.cy-face.cy, ratio=o.w/face.w;
+  var tol=u*0.05, msgs=[], level='warn';
+  if(ratio<0.82)msgs.push('人太远 · 向前走/靠近');
+  else if(ratio>1.22)msgs.push('人太近 · 向后退一点');
+  if(dy<-tol)msgs.push('脸偏高 · 压低主体或抬高机位');
+  else if(dy>tol)msgs.push('脸偏低 · 抬高主体或放低机位');
+  if(dx<-tol)msgs.push('偏左 · 向画面右移');
+  else if(dx>tol)msgs.push('偏右 · 向画面左移');
+  if(!msgs.length){level='ok';msgs.push('对齐得很好 · 保持不动，按快门！');}
+  setHint(level,msgs.join(' ｜ '));
+}
+
+setMode('通用');
+layout();
+})();
+</script>
+</body>
+</html>

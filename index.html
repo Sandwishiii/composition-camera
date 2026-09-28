@@ -19,9 +19,11 @@
   #overlay{pointer-events:none;}
 
   #topbar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;gap:8px;align-items:center;
-    padding:calc(env(safe-area-inset-top) + 8px) 12px 6px;
+    padding:calc(env(safe-area-inset-top) + 8px) 12px 6px;overflow-x:auto;scrollbar-width:none;
     background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);}
-  #topbar .title{font-size:14px;font-weight:600;letter-spacing:.5px;opacity:.9;margin-right:auto;}
+  #topbar::-webkit-scrollbar{display:none;}
+  #topbar .title{font-size:14px;font-weight:600;letter-spacing:.5px;opacity:.9;margin-right:auto;flex:none;}
+  #topbar .chip{flex:none;}
   .chip{border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.4);color:#fff;
     border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;user-select:none;transition:.15s;white-space:nowrap;}
   .chip.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:600;}
@@ -30,7 +32,23 @@
   .row::-webkit-scrollbar{display:none;}
   #modes{top:calc(env(safe-area-inset-top) + 44px);}
   #guides{top:calc(env(safe-area-inset-top) + 80px);}
+  #templates{top:calc(env(safe-area-inset-top) + 116px);display:none;}
+  #templates.show{display:flex;}
   #modes .chip.on{background:#fff;color:#111;border-color:#fff;}
+  #templates .chip.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:600;}
+
+  /* live alignment hint banner */
+  #liveHint{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 104px);transform:translateX(-50%);
+    z-index:18;max-width:88vw;display:none;align-items:center;gap:8px;
+    padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;line-height:1.35;
+    background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.22);text-align:center;
+    box-shadow:0 2px 14px rgba(0,0,0,.4);}
+  #liveHint.show{display:flex;}
+  #liveHint .lvDot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--warn);}
+  #liveHint.ok{border-color:var(--ok);} #liveHint.ok .lvDot{background:var(--ok);}
+  #liveHint.warn{border-color:var(--warn);} #liveHint.warn .lvDot{background:var(--warn);}
+  #liveHint.info{border-color:var(--info);} #liveHint.info .lvDot{background:var(--info);}
+  #liveHint.bad{border-color:var(--bad);} #liveHint.bad .lvDot{background:var(--bad);}
 
   #level{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;
     width:180px;height:180px;pointer-events:none;opacity:0;transition:opacity .2s;}
@@ -110,6 +128,7 @@
 
 <div id="topbar">
   <span class="title">构图相机</span>
+  <div class="chip" id="btnLive" title="实时对齐提示">🎯 实时</div>
   <div class="chip" id="btnManual">📖 手册</div>
   <div class="chip" id="btnLevel">水平仪</div>
   <div class="chip" id="btnSwitch">翻转</div>
@@ -117,6 +136,9 @@
 
 <div class="row" id="modes"></div>
 <div class="row" id="guides"></div>
+<div class="row" id="templates"></div>
+
+<div id="liveHint" class="warn"><span class="lvDot"></span><span id="liveHintText"></span></div>
 
 <div id="bottom">
   <div class="roundbtn" id="btnTips" title="本模式要点">💡</div>
@@ -167,7 +189,7 @@
 
 <div id="gate">
   <h1>构图相机</h1>
-  <p>辅助线 + 水平仪 + 6 种拍摄模式 + 拍完本地自动点评构图。<br>全程离线，不上传任何画面。</p>
+  <p>辅助线 + 水平仪 + 6 种拍摄模式 + 人像姿势模板阴影 + 实时对齐提示 + 拍完本地自动点评构图。<br>全程离线，不上传任何画面。</p>
   <div class="chip" id="btnStart">开启摄像头</div>
   <div class="err" id="gateErr"></div>
 </div>
@@ -255,6 +277,80 @@ var MODES=[
   {k:'打卡', checks:['subject','exposure','clutter','aspectPortrait'], guides:['thirds']}
 ];
 
+/* ================= 人像姿势模板（阴影站位 + 要点） =================
+   heads: [cx,cy,r]  limbs: 折线点数组  face: 目标人脸框{cx,cy,w}(0-100坐标, 供实时对齐)
+   坐标系 0-100，y 向下，与 overlay viewBox 一致。 */
+var TEMPLATES=[
+  {id:'stand', name:'站姿全身',
+   heads:[[50,15,6]],
+   limbs:[[[50,21],[50,52]],[[50,27],[42,42],[40,54]],[[50,27],[59,41],[62,52]],
+          [[50,52],[46,72],[45,92]],[[50,52],[58,70],[56,92]]],
+   face:{cx:50,cy:16,w:15},
+   tips:[
+     {t:'机位放低',d:'镜头放在人物腰部或更低的高度仰拍，能把腿拉长、显高显瘦；高机位俯拍会显矮显头大。'},
+     {t:'脚贴底边',d:'让脚几乎踩到画面下边缘，头顶留一点呼吸空间，切忌脚底留一大截空白——那样会把人拍矮。'},
+     {t:'别罚站',d:'一条腿承重、另一条腿稍弯曲前后错开（不要左右并拢，会显下半身壮）；胯部轻扭、肩膀一高一低，身体转约15°再回眸。'},
+     {t:'手有处放',d:'手别垂直死贴身体两侧。插兜、扶腰、撩发、或拿个小道具（帽子/包），高低错开更显自然。'},
+     {t:'防变形',d:'别用超广角贴近拍，边缘会把人拉变形；用 1–2 倍变焦站稍远处，竖构图更适合全身。'}
+   ]},
+  {id:'half', name:'半身特写',
+   heads:[[50,26,12]],
+   limbs:[[[50,38],[50,86]],[[33,48],[50,44],[67,48]],[[33,48],[29,84]],[[67,48],[71,84]]],
+   face:{cx:50,cy:26,w:28},
+   tips:[
+     {t:'取景下缘',d:'裁在腰部或大腿中部，别正好卡在关节（膝盖、腰最难受）；头顶留一点空间，别贴边也别留太多。'},
+     {t:'眼睛在上三分线',d:'把眼睛放在画面上三分之一线附近最舒服，对焦和测光都锁在眼睛——眼睛清晰有神，照片就成功一半。'},
+     {t:'沉肩展颈',d:'对应侧的肩自然下沉、脖子伸长，消除局促感；单手以指腹轻贴腰，掌心侧向镜头、五指自然微分。'},
+     {t:'侧一点更显瘦',d:'身体转 30–45°、脸再转回镜头；下巴微向前伸并略低，能收紧下颌线、显脸小。'},
+     {t:'虚化背景',d:'用大光圈或手机"人像模式"（保持 1.5–2 米距离、光线充足）虚化背景，让主体跳出来。'}
+   ]},
+  {id:'lean', name:'倚靠侧身',
+   heads:[[46,18,6]],
+   limbs:[[[46,24],[52,52]],[[48,30],[42,46],[46,54]],[[50,30],[60,44],[62,54]],
+          [[52,52],[50,74],[49,92]],[[52,52],[62,70],[66,84]]],
+   face:{cx:46,cy:18,w:15},
+   tips:[
+     {t:'找支撑',d:'主动倚靠墙面、树干、栏杆，打破笔直站姿，身体立刻放松有故事感。'},
+     {t:'重心在后',d:'重心放在靠墙那条腿，另一条腿自然弯曲、脚尖点地或前伸，形成好看的 S 型曲线。'},
+     {t:'侧身角度',d:'身体侧对镜头约 30–45°、脸转回来，比正对镜头更显瘦、更有型。'},
+     {t:'背景横平竖直',d:'倚墙时留意背景的线条要"横平竖直"，开水平仪/网格，别歪。'}
+   ]},
+  {id:'sit', name:'坐姿',
+   heads:[[42,26,7]],
+   limbs:[[[42,33],[46,58]],[[46,58],[68,58]],[[68,58],[68,86]],[[64,58],[62,86]],
+          [[44,40],[58,52]],[[44,40],[36,56],[38,66]]],
+   face:{cx:42,cy:26,w:18},
+   tips:[
+     {t:'坐前不坐满',d:'只坐椅子/台阶的前半部分，上身微微前倾，腿向画面一侧延伸，比例更修长。'},
+     {t:'脊柱挺直',d:'挺胸抬头、脊柱伸直，别瘫坐驼背；侧坐时双腿可交叠向侧方延伸拉长下肢。'},
+     {t:'腿的角度',d:'一条腿自然伸出、脚尖点地或绷直，避免双腿正对镜头并拢（会显短显粗）。'},
+     {t:'手托下颌',d:'一手轻托下颌或搭在膝上，另一手自然下垂，构建高低层次，别双臂环抱胸前。'}
+   ]},
+  {id:'walk', name:'行走抓拍',
+   heads:[[50,15,6]],
+   limbs:[[[50,21],[50,50]],[[50,27],[40,40],[36,50]],[[50,27],[60,42],[64,54]],
+          [[50,50],[62,68],[64,90]],[[50,50],[40,70],[34,88]]],
+   face:{cx:50,cy:16,w:15},
+   tips:[
+     {t:'连拍抓瞬间',d:'让人物自然走动、聊天或回眸，摄影师连拍，事后挑表情最自然的一张，比喊"一二三"生动。'},
+     {t:'留视线空间',d:'在人物前进/视线的方向多留空白，画面更有动感和呼吸感。'},
+     {t:'大步更自然',d:'步伐稍大、手臂自然摆动，裙摆/衣角带风，动感更强。'},
+     {t:'对焦锁定',d:'提前对好焦并锁定（长按屏幕），或用连拍 + 追焦，避免走动糊片。'}
+   ]},
+  {id:'couple', name:'双人合影',
+   heads:[[37,18,6],[61,20,6]],
+   limbs:[[[37,24],[37,52]],[[37,52],[33,74],[32,92]],[[37,52],[42,74],[43,92]],[[37,28],[29,44],[28,54]],
+          [[61,26],[61,54]],[[61,54],[57,76],[56,92]],[[61,54],[66,76],[67,92]],[[61,30],[69,46],[70,56]],
+          [[37,30],[49,40]],[[61,32],[49,40]]],
+   face:{cx:49,cy:19,w:34},
+   tips:[
+     {t:'关系感最重要',d:'让两人有互动——对视、额头相抵、牵手、搭肩、背靠背，比并排站看镜头自然得多。'},
+     {t:'错落站位',d:'两人不要一样高、一样姿势。一坐一站、一前一后、一高一低；个子差大时用台阶、坐姿找平。'},
+     {t:'靠近一点',d:'两人身体略向内靠、头微微相倾，画面更亲密；避免各站各的、中间空一大块。'},
+     {t:'抓拍互动',d:'让其中一人主导动作、另一人回应，连拍抓大笑/整理头发/递东西的瞬间最打动人。'}
+   ]}
+];
+
 var video=document.getElementById('video');
 var overlay=document.getElementById('overlay');
 var gate=document.getElementById('gate');
@@ -262,7 +358,8 @@ var gateErr=document.getElementById('gateErr');
 
 var state={stream:null,facing:'environment',
   guides:{thirds:true,golden:false,diag:false,center:false,spiral:false},
-  mode:'通用', levelOn:false, lastShot:null, lastAnalysis:null, portraitPopped:false};
+  mode:'通用', levelOn:false, lastShot:null, lastAnalysis:null, portraitPopped:false,
+  template:null, live:false, faceDetector:null, rtRunning:false};
 
 /* ---------- layout ---------- */
 function layout(){
@@ -292,8 +389,14 @@ function setMode(k){
   state.mode=k;
   Array.prototype.forEach.call(modesEl.children,function(c){c.className='chip'+(c.dataset.mode===k?' on':'');});
   var m=MODES.filter(function(x){return x.k===k;})[0];
-  if(m){ ['thirds','golden','diag','center','spiral'].forEach(function(g){state.guides[g]=m.guides.indexOf(g)>=0;}); syncGuideChips(); drawGuides(); }
+  if(m){ ['thirds','golden','diag','center','spiral'].forEach(function(g){state.guides[g]=m.guides.indexOf(g)>=0;}); syncGuideChips(); }
+  // 模板行仅在人像模式显示；离开人像时清空模板并停掉实时
+  var isPortrait=(k==='人像');
+  document.getElementById('templates').classList.toggle('show',isPortrait);
+  document.getElementById('btnLive').style.display=isPortrait?'':'none';
+  if(!isPortrait){state.template=null;setLive(false);syncTemplateChips();}
   if(k==='人像'&&!state.portraitPopped){state.portraitPopped=true;openTips();}
+  drawGuides();
 }
 
 /* ---------- guide chips ---------- */
@@ -312,6 +415,37 @@ document.getElementById('btnGuideAll').onclick=function(){
   guideDefs.forEach(function(d){state.guides[d.k]=anyOff;});
   syncGuideChips();drawGuides();
 };
+
+/* ---------- template chips (人像姿势模板) ---------- */
+var tplEl=document.getElementById('templates');
+function buildTemplateChips(){
+  tplEl.innerHTML='';
+  var none=document.createElement('div');
+  none.className='chip on';none.textContent='✕ 无模板';none.dataset.tpl='';
+  none.onclick=function(){selectTemplate(null);};
+  tplEl.appendChild(none);
+  TEMPLATES.forEach(function(t){
+    var c=document.createElement('div');
+    c.className='chip';c.textContent=t.name;c.dataset.tpl=t.id;
+    c.onclick=function(){selectTemplate(t.id);};
+    tplEl.appendChild(c);
+  });
+}
+function syncTemplateChips(){
+  Array.prototype.forEach.call(tplEl.children,function(c){
+    c.className='chip'+(((c.dataset.tpl||null)===(state.template?state.template.id:null))?' on':'');
+  });
+}
+function currentTemplate(){return state.template;}
+function selectTemplate(id){
+  if(!id){state.template=null;setLive(false);syncTemplateChips();drawGuides();return;}
+  var t=null;for(var i=0;i<TEMPLATES.length;i++)if(TEMPLATES[i].id===id)t=TEMPLATES[i];
+  state.template=t;
+  syncTemplateChips();
+  drawGuides();
+  showTemplateTips(t);
+}
+buildTemplateChips();
 
 /* ---------- draw overlay guides ---------- */
 var SVGNS='http://www.w3.org/2000/svg';
@@ -335,6 +469,44 @@ function drawGuides(){
   if(g.spiral){var p=document.createElementNS(SVGNS,'path');p.setAttribute('d',spiralArcs());
     p.setAttribute('fill','none');p.setAttribute('stroke','rgba(255,204,0,.75)');p.setAttribute('stroke-width',0.4);
     p.setAttribute('vector-effect','non-scaling-stroke');overlay.appendChild(p);}
+  drawTemplate();
+}
+
+/* ---------- 姿势模板阴影叠加 ---------- */
+function drawTemplate(){
+  var t=state.template;if(!t)return;
+  var grp=document.createElementNS(SVGNS,'g');
+  grp.setAttribute('opacity','0.5');
+  // 肢体：粗圆头折线，读起来像半透明人形阴影
+  t.limbs.forEach(function(pts){
+    var pl=document.createElementNS(SVGNS,'polyline');
+    pl.setAttribute('points',pts.map(function(p){return p[0]+','+p[1];}).join(' '));
+    pl.setAttribute('fill','none');
+    pl.setAttribute('stroke','#ffcc00');
+    pl.setAttribute('stroke-width','6');
+    pl.setAttribute('stroke-linecap','round');
+    pl.setAttribute('stroke-linejoin','round');
+    grp.appendChild(pl);
+  });
+  // 头
+  t.heads.forEach(function(h){
+    var c=document.createElementNS(SVGNS,'circle');
+    c.setAttribute('cx',h[0]);c.setAttribute('cy',h[1]);c.setAttribute('r',h[2]);
+    c.setAttribute('fill','#ffcc00');c.setAttribute('opacity','0.55');
+    grp.appendChild(c);
+  });
+  overlay.appendChild(grp);
+  // 实时对齐时画出目标人脸框
+  if(state.live&&t.face){
+    var fw=t.face.w, fh=t.face.w*1.3;
+    var r=document.createElementNS(SVGNS,'rect');
+    r.setAttribute('x',t.face.cx-fw/2);r.setAttribute('y',t.face.cy-fh/2);
+    r.setAttribute('width',fw);r.setAttribute('height',fh);
+    r.setAttribute('fill','none');r.setAttribute('stroke','#3ddc84');
+    r.setAttribute('stroke-width','0.6');r.setAttribute('stroke-dasharray','2 2');
+    r.setAttribute('vector-effect','non-scaling-stroke');
+    overlay.appendChild(r);
+  }
 }
 function spiralArcs(){
   var rectH=100/1.6180339887, sx=0, sy=(100-rectH)/2, sw=100, sh=rectH, d='', first=true;
@@ -408,6 +580,17 @@ function openTips(){
   var html='';
   arr.forEach(function(x){html+='<div class="card"><div class="sec" style="margin-top:0">'+x.t+'</div><div style="font-size:13.5px;line-height:1.65;opacity:.92">'+x.d+'</div></div>';});
   html+='<div class="card" style="font-size:12px;opacity:.6;line-height:1.6;">带 📷 的姿态/对焦类要点纯前端无法自动判定，仅作提醒；能自动分析的项见拍后点评。</div>';
+  document.getElementById('tipsBody').innerHTML=html;
+  openSheet('tipsSheet');
+}
+function showTemplateTips(t){
+  if(!t)return;
+  document.getElementById('tipsTitle').textContent=t.name+' · 姿势要点';
+  var html='';
+  html+='<div class="card" style="font-size:12.5px;line-height:1.6;opacity:.85;">让主体对准画面里的<b style="color:var(--accent)">黄色人形阴影</b>摆好姿势即可。';
+  if(t.face)html+='开「🎯 实时」后，绿框是脸该在的位置，会提示你靠近/退后/抬高/压低。';
+  html+='</div>';
+  t.tips.forEach(function(x){html+='<div class="card"><div class="sec" style="margin-top:0">'+x.t+'</div><div style="font-size:13.5px;line-height:1.65;opacity:.92">'+x.d+'</div></div>';});
   document.getElementById('tipsBody').innerHTML=html;
   openSheet('tipsSheet');
 }
@@ -658,6 +841,87 @@ function drawAnalysisOverlay(canvas){
     ctx.strokeStyle='#ffcc00';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(px,py,Math.min(W,H)*0.055,0,Math.PI*2);ctx.stroke();
     ctx.beginPath();ctx.moveTo(px-11,py);ctx.lineTo(px+11,py);ctx.moveTo(px,py-11);ctx.lineTo(px,py+11);ctx.stroke();}
+}
+
+/* ================= 实时对齐提示（FaceDetector，离线、无需 CDN） ================= */
+var liveHintEl=document.getElementById('liveHint'),liveHintText=document.getElementById('liveHintText');
+function setHint(level,text){
+  liveHintEl.className='show '+level;
+  liveHintText.textContent=text;
+}
+function clearHint(){liveHintEl.className='';liveHintEl.style.display='';}
+
+function initFaceDetector(){
+  if(state.faceDetector)return state.faceDetector;
+  if(typeof FaceDetector==='undefined')return null;
+  try{state.faceDetector=new FaceDetector({fastMode:true,maxDetectedFaces:2});}
+  catch(e){state.faceDetector=null;}
+  return state.faceDetector;
+}
+
+function setLive(on){
+  state.live=on;
+  var b=document.getElementById('btnLive');
+  b.classList.toggle('on',on);
+  if(on){
+    var fd=initFaceDetector();
+    if(!fd){b.classList.remove('on');state.live=false;
+      setHint('bad','此浏览器不支持实时人脸检测（需 Chrome/Edge）。可只按黄色阴影对齐。');
+      state.rtRunning=false;drawGuides();return;}
+    state.rtRunning=true;drawGuides();
+    lastRt=0;requestAnimationFrame(rtLoop);
+  } else {
+    state.rtRunning=false;clearHint();drawGuides();
+  }
+}
+document.getElementById('btnLive').onclick=function(){
+  if(!state.live&&!state.template){setHint('warn','请先选一个姿势模板（下方黄色标签），再开实时对齐。');return;}
+  setLive(!state.live);
+};
+
+var lastRt=0;
+function rtLoop(ts){
+  if(!state.rtRunning)return;
+  requestAnimationFrame(rtLoop);
+  if(ts-lastRt<180)return; // ~5fps，省电省算力
+  lastRt=ts;
+  if(!state.faceDetector||video.readyState<2||!state.template)return;
+  state.faceDetector.detect(video).then(function(faces){
+    if(!state.rtRunning)return;
+    if(!faces||!faces.length){setHint('warn','没检测到脸 · 让主体正对镜头、光线充足');return;}
+    // 取面积最大的人脸
+    var f=faces[0],fa=faces[0].boundingBox.width*faces[0].boundingBox.height;
+    faces.forEach(function(x){var a=x.boundingBox.width*x.boundingBox.height;if(a>fa){fa=a;f=x;}});
+    computeHint(videoToOverlay(f.boundingBox));
+  }).catch(function(){/* 某些帧检测失败，忽略 */});
+}
+
+/* 把视频帧里的矩形映射到 overlay 的 0-100 坐标（考虑 object-fit:cover 裁剪） */
+function videoToOverlay(rect){
+  var vw=video.videoWidth,vh=video.videoHeight;
+  var dispW=overlay.clientWidth||parseFloat(overlay.style.width)||1;
+  var dispH=overlay.clientHeight||parseFloat(overlay.style.height)||1;
+  var scale=Math.max(dispW/vw,dispH/vh);
+  var rendW=vw*scale,rendH=vh*scale;
+  var offX=(dispW-rendW)/2,offY=(dispH-rendH)/2;
+  var x=rect.x*scale+offX,y=rect.y*scale+offY,w=rect.width*scale,h=rect.height*scale;
+  return {cx:(x+w/2)/dispW*100,cy:(y+h/2)/dispH*100,w:w/dispW*100};
+}
+
+function computeHint(o){
+  var t=state.template;
+  if(!t||!t.face){setHint('info','按黄色阴影对齐主体即可');return;}
+  var face=t.face;
+  var dx=o.cx-face.cx, dy=o.cy-face.cy, ratio=o.w/face.w;
+  var tol=4.5, msgs=[], level='warn';
+  if(ratio<0.82)msgs.push('人太远 · 向前走/靠近');
+  else if(ratio>1.22)msgs.push('人太近 · 向后退一点');
+  if(dy<-tol)msgs.push('脸偏高 · 压低主体或抬高机位');
+  else if(dy>tol)msgs.push('脸偏低 · 抬高主体或放低机位');
+  if(dx<-tol)msgs.push('偏左 · 向画面右移');
+  else if(dx>tol)msgs.push('偏右 · 向画面左移');
+  if(!msgs.length){level='ok';msgs.push('对齐得很好 · 保持不动，按快门！');}
+  setHint(level,msgs.join(' ｜ '));
 }
 
 setMode('通用');

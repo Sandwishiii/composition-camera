@@ -80,6 +80,16 @@
   th{background:rgba(255,255,255,.08);}
   .closeX{border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.4);color:#fff;border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;}
 
+  /* 微动画 + 可展开要点 */
+  .animSvg{width:100%;height:auto;max-height:220px;display:block;background:rgba(255,255,255,.05);border-radius:10px;}
+  .tipRow{cursor:pointer;}
+  .tipHead{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;}
+  .tipHead b{color:var(--accent);font-size:13.5px;flex:none;}
+  .tipC{font-size:12.5px;opacity:.8;line-height:1.5;}
+  .tipFull{display:none;font-size:13px;line-height:1.65;opacity:.9;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.18);}
+  .tipRow.open .tipFull{display:block;}
+  .tipRow.open .tipC{opacity:.5;}
+
   /* review */
   #review{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.9);display:none;flex-direction:column;
     padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 14px);overflow:auto;}
@@ -277,79 +287,162 @@ var MODES=[
   {k:'打卡', checks:['subject','exposure','clutter','aspectPortrait'], guides:['thirds']}
 ];
 
-/* ================= 人像姿势模板（阴影站位 + 要点） =================
-   heads: [cx,cy,r]  limbs: 折线点数组  face: 目标人脸框{cx,cy,w}(0-100坐标, 供实时对齐)
-   坐标系 0-100，y 向下，与 overlay viewBox 一致。 */
+/* ================= 模板库（人像剪影 + 景点构图示意 + 专业参数配方） =================
+   figure: place{cx,top,h}为画面占比; 局部坐标 x 以中轴为0、y 0(头顶)→100(脚); torso[[x,y,半宽]]; limbs{p:[[x,y]],r:半径}; heads[{x,y,rx,ry}]
+   scene:  scheme 决定示意画法; hy 地平线占比; vp 汇聚点; subj 主体位置; sun 光线箭头位置
+   params: focal/aperture/shutter/iso/height/distance/light/time/wb */
 var TEMPLATES=[
-  {id:'stand', name:'站姿全身',
-   heads:[[50,15,6]],
-   limbs:[[[50,21],[50,52]],[[50,27],[42,42],[40,54]],[[50,27],[59,41],[62,52]],
-          [[50,52],[46,72],[45,92]],[[50,52],[58,70],[56,92]]],
-   face:{cx:50,cy:16,w:15},
-   tips:[
-     {t:'机位放低',d:'镜头放在人物腰部或更低的高度仰拍，能把腿拉长、显高显瘦；高机位俯拍会显矮显头大。'},
-     {t:'脚贴底边',d:'让脚几乎踩到画面下边缘，头顶留一点呼吸空间，切忌脚底留一大截空白——那样会把人拍矮。'},
-     {t:'别罚站',d:'一条腿承重、另一条腿稍弯曲前后错开（不要左右并拢，会显下半身壮）；胯部轻扭、肩膀一高一低，身体转约15°再回眸。'},
-     {t:'手有处放',d:'手别垂直死贴身体两侧。插兜、扶腰、撩发、或拿个小道具（帽子/包），高低错开更显自然。'},
-     {t:'防变形',d:'别用超广角贴近拍，边缘会把人拉变形；用 1–2 倍变焦站稍远处，竖构图更适合全身。'}
-   ]},
-  {id:'half', name:'半身特写',
-   heads:[[50,26,12]],
-   limbs:[[[50,38],[50,86]],[[33,48],[50,44],[67,48]],[[33,48],[29,84]],[[67,48],[71,84]]],
-   face:{cx:50,cy:26,w:28},
-   tips:[
-     {t:'取景下缘',d:'裁在腰部或大腿中部，别正好卡在关节（膝盖、腰最难受）；头顶留一点空间，别贴边也别留太多。'},
-     {t:'眼睛在上三分线',d:'把眼睛放在画面上三分之一线附近最舒服，对焦和测光都锁在眼睛——眼睛清晰有神，照片就成功一半。'},
-     {t:'沉肩展颈',d:'对应侧的肩自然下沉、脖子伸长，消除局促感；单手以指腹轻贴腰，掌心侧向镜头、五指自然微分。'},
-     {t:'侧一点更显瘦',d:'身体转 30–45°、脸再转回镜头；下巴微向前伸并略低，能收紧下颌线、显脸小。'},
-     {t:'虚化背景',d:'用大光圈或手机"人像模式"（保持 1.5–2 米距离、光线充足）虚化背景，让主体跳出来。'}
-   ]},
-  {id:'lean', name:'倚靠侧身',
-   heads:[[46,18,6]],
-   limbs:[[[46,24],[52,52]],[[48,30],[42,46],[46,54]],[[50,30],[60,44],[62,54]],
-          [[52,52],[50,74],[49,92]],[[52,52],[62,70],[66,84]]],
-   face:{cx:46,cy:18,w:15},
-   tips:[
-     {t:'找支撑',d:'主动倚靠墙面、树干、栏杆，打破笔直站姿，身体立刻放松有故事感。'},
-     {t:'重心在后',d:'重心放在靠墙那条腿，另一条腿自然弯曲、脚尖点地或前伸，形成好看的 S 型曲线。'},
-     {t:'侧身角度',d:'身体侧对镜头约 30–45°、脸转回来，比正对镜头更显瘦、更有型。'},
-     {t:'背景横平竖直',d:'倚墙时留意背景的线条要"横平竖直"，开水平仪/网格，别歪。'}
-   ]},
-  {id:'sit', name:'坐姿',
-   heads:[[42,26,7]],
-   limbs:[[[42,33],[46,58]],[[46,58],[68,58]],[[68,58],[68,86]],[[64,58],[62,86]],
-          [[44,40],[58,52]],[[44,40],[36,56],[38,66]]],
-   face:{cx:42,cy:26,w:18},
-   tips:[
-     {t:'坐前不坐满',d:'只坐椅子/台阶的前半部分，上身微微前倾，腿向画面一侧延伸，比例更修长。'},
-     {t:'脊柱挺直',d:'挺胸抬头、脊柱伸直，别瘫坐驼背；侧坐时双腿可交叠向侧方延伸拉长下肢。'},
-     {t:'腿的角度',d:'一条腿自然伸出、脚尖点地或绷直，避免双腿正对镜头并拢（会显短显粗）。'},
-     {t:'手托下颌',d:'一手轻托下颌或搭在膝上，另一手自然下垂，构建高低层次，别双臂环抱胸前。'}
-   ]},
-  {id:'walk', name:'行走抓拍',
-   heads:[[50,15,6]],
-   limbs:[[[50,21],[50,50]],[[50,27],[40,40],[36,50]],[[50,27],[60,42],[64,54]],
-          [[50,50],[62,68],[64,90]],[[50,50],[40,70],[34,88]]],
-   face:{cx:50,cy:16,w:15},
-   tips:[
-     {t:'连拍抓瞬间',d:'让人物自然走动、聊天或回眸，摄影师连拍，事后挑表情最自然的一张，比喊"一二三"生动。'},
-     {t:'留视线空间',d:'在人物前进/视线的方向多留空白，画面更有动感和呼吸感。'},
-     {t:'大步更自然',d:'步伐稍大、手臂自然摆动，裙摆/衣角带风，动感更强。'},
-     {t:'对焦锁定',d:'提前对好焦并锁定（长按屏幕），或用连拍 + 追焦，避免走动糊片。'}
-   ]},
-  {id:'couple', name:'双人合影',
-   heads:[[37,18,6],[61,20,6]],
-   limbs:[[[37,24],[37,52]],[[37,52],[33,74],[32,92]],[[37,52],[42,74],[43,92]],[[37,28],[29,44],[28,54]],
-          [[61,26],[61,54]],[[61,54],[57,76],[56,92]],[[61,54],[66,76],[67,92]],[[61,30],[69,46],[70,56]],
-          [[37,30],[49,40]],[[61,32],[49,40]]],
-   face:{cx:49,cy:19,w:34},
-   tips:[
-     {t:'关系感最重要',d:'让两人有互动——对视、额头相抵、牵手、搭肩、背靠背，比并排站看镜头自然得多。'},
-     {t:'错落站位',d:'两人不要一样高、一样姿势。一坐一站、一前一后、一高一低；个子差大时用台阶、坐姿找平。'},
-     {t:'靠近一点',d:'两人身体略向内靠、头微微相倾，画面更亲密；避免各站各的、中间空一大块。'},
-     {t:'抓拍互动',d:'让其中一人主导动作、另一人回应，连拍抓大笑/整理头发/递东西的瞬间最打动人。'}
-   ]}
+/* ---------------- 人像 ---------------- */
+{id:'stand',name:'站姿全身',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.05,h:0.9},
+ head:{x:0,y:8,rx:4.3,ry:6.2},heads:[{x:0,y:8,rx:4.3,ry:6.2}],faceHead:0,
+ torso:[[0,14,2.2],[0,18,7.4],[0,27,6.2],[0,37,5.1],[0,45,6.4],[0,51,6.8]],
+ limbs:[{p:[[6.5,20],[10,32],[6.5,42]],r:2},{p:[[-6.5,20],[-9.5,34],[-9,48]],r:2},
+        {p:[[-3.4,51],[-4,73],[-4.2,96]],r:3.2},{p:[[3.4,51],[7.5,71],[6.5,96]],r:3.2}],
+ params:{focal:'等效 50–85mm（手机 1–2×）',aperture:'f/2.8–f/4（背景略虚化）',shutter:'1/250s 以上防抖',iso:'ISO 100–400（尽量低）',height:'机位齐腰或更低，略仰拍',distance:'2.5–4 米',light:'侧光/侧逆光 45° 勾轮廓',time:'黄金时刻（日出后/日落前 1 小时）',wb:'日光/阴影，暖调更肤色好'},
+ tips:[
+   {t:'机位放低',d:'镜头放在人物腰部或更低仰拍，把腿拉长、显高显瘦；高机位俯拍会显矮显头大。'},
+   {t:'脚贴底边',d:'让脚几乎踩到画面下边缘，头顶留一点呼吸空间，切忌脚底留一大截空白。'},
+   {t:'别罚站',d:'一条腿承重、另一条腿稍弯前后错开（别左右并拢会显壮）；胯轻扭、肩一高一低，身体转约15°再回眸。'},
+   {t:'手有处放',d:'插兜、扶腰、撩发或拿个小道具，双手高低错开，别垂直死贴身体两侧。'},
+   {t:'防变形',d:'别用超广角贴近拍；用 1–2× 变焦站稍远处，竖构图更适合全身。'}
+ ]},
+{id:'half',name:'半身特写',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.16,h:0.7},
+ head:{x:0,y:12,rx:8,ry:10.5},heads:[{x:0,y:12,rx:8,ry:10.5}],faceHead:0,
+ torso:[[0,24,4],[0,30,12.5],[0,45,11.5],[0,65,11],[0,85,12],[0,100,13]],
+ limbs:[{p:[[-12,32],[-16,58],[-15,88]],r:4},{p:[[12,32],[16,58],[15,88]],r:4}],
+ params:{focal:'等效 50–85mm（手机 2×）',aperture:'f/1.8–f/2.8（人像模式）',shutter:'1/200s 以上',iso:'ISO 100–400',height:'机位齐眼睛高度',distance:'1.5–2 米',light:'45° 前侧光最耐看；窗边柔光佳',time:'黄金时刻或阴天柔光',wb:'按光源；想要通透可略偏冷'},
+ tips:[
+   {t:'取景下缘',d:'裁在腰部或大腿中部，别卡关节（膝盖/腰最难受）；头顶留一点空间。'},
+   {t:'眼睛在上三分线',d:'眼睛放画面上三分之一线附近，对焦测光都锁眼睛——眼睛清晰有神就成功一半。'},
+   {t:'沉肩展颈',d:'对应侧肩自然下沉、脖子伸长；单手以指腹轻贴腰，掌心侧向镜头、五指微分。'},
+   {t:'侧一点更显瘦',d:'身体转 30–45°、脸转回镜头；下巴微前伸并略低，收紧下颌线、显脸小。'}
+ ]},
+{id:'lean',name:'倚靠侧身',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.06,h:0.88},
+ head:{x:-2,y:8,rx:4.3,ry:6.2},heads:[{x:-2,y:8,rx:4.3,ry:6.2}],faceHead:0,
+ torso:[[-1,14,2.2],[1,18,7.2],[3,28,6],[4,38,5.2],[4,46,6.4],[3,52,6.8]],
+ limbs:[{p:[[2,22],[-4,36],[-1,46]],r:2},{p:[[5,22],[10,34],[11,46]],r:2},
+        {p:[[2,52],[1,74],[0,96]],r:3.2},{p:[[5,52],[11,70],[13,88]],r:3.2}],
+ params:{focal:'等效 35–50mm',aperture:'f/2–f/2.8',shutter:'1/200s',iso:'ISO 100–800',height:'机位齐胸，平视或略仰',distance:'2–3 米',light:'侧光强化倚靠的立体感',time:'黄金时刻 / 阴天',wb:'日光'},
+ tips:[
+   {t:'找支撑',d:'主动倚墙、树干、栏杆，打破笔直站姿，身体立刻放松有故事感。'},
+   {t:'重心在后',d:'重心放靠墙那条腿，另一条自然弯曲、脚尖点地，形成 S 型曲线。'},
+   {t:'背景横平竖直',d:'倚墙时背景线条要正，开水平仪/网格别歪。'}
+ ]},
+{id:'sit',name:'坐姿',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.2,h:0.66},
+ head:{x:-6,y:12,rx:5,ry:7},heads:[{x:-6,y:12,rx:5,ry:7}],faceHead:0,
+ torso:[[-5,20,3],[-2,26,7],[0,38,6],[2,50,6.5],[3,58,7]],
+ limbs:[{p:[[3,58],[16,59]],r:4.5},{p:[[2,61],[15,64]],r:4.5},
+        {p:[[16,59],[17,82]],r:3.4},{p:[[15,64],[16,85]],r:3.4},
+        {p:[[-3,30],[8,46],[15,58]],r:2.4},{p:[[-4,30],[-9,46],[-8,58]],r:2.4}],
+ params:{focal:'等效 35–50mm',aperture:'f/2.8',shutter:'1/160s',iso:'ISO 100–800',height:'机位与坐姿眼睛齐平或略低',distance:'1.8–3 米',light:'前侧柔光，避免顶光',time:'上午 10 点前 / 下午 4 点后',wb:'日光/阴影'},
+ tips:[
+   {t:'坐前不坐满',d:'只坐椅子/台阶前半部，上身微前倾，腿向画面一侧延伸，比例更修长。'},
+   {t:'脊柱挺直',d:'挺胸抬头别瘫坐驼背；侧坐时双腿可交叠向侧方延伸拉长下肢。'},
+   {t:'手托下颌',d:'一手轻托下颌或搭膝，另一手自然下垂，别双臂环抱胸前。'}
+ ]},
+{id:'walk',name:'行走抓拍',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.06,h:0.88},
+ head:{x:0,y:8,rx:4.3,ry:6.2},heads:[{x:0,y:8,rx:4.3,ry:6.2}],faceHead:0,
+ torso:[[0,14,2.2],[1,18,7.2],[2,28,6],[1,38,5.2],[0,46,6.4],[0,52,6.8]],
+ limbs:[{p:[[1,22],[-6,34],[-9,44]],r:2},{p:[[1,22],[8,33],[11,42]],r:2},
+        {p:[[0,52],[8,70],[10,94]],r:3.2},{p:[[0,52],[-7,70],[-11,90]],r:3.2}],
+ params:{focal:'等效 35–85mm',aperture:'f/2.8–f/4',shutter:'1/500s 以上冻结动作',iso:'ISO 200–800（快门优先）',height:'机位齐腰，跟拍',distance:'3–5 米',light:'侧逆光勾发丝与轮廓',time:'黄金时刻',wb:'日光'},
+ tips:[
+   {t:'连拍抓瞬间',d:'让人物自然走动/回眸，连拍后挑最自然的一张，比喊"一二三"生动。'},
+   {t:'留视线空间',d:'在前进/视线方向多留空白，画面更有动感。'},
+   {t:'快门要够快',d:'至少 1/500s 冻结脚步，避免糊；提前锁焦或用连拍追焦。'}
+ ]},
+{id:'couple',name:'双人合影',mode:'人像',kind:'figure',
+ place:{cx:0.5,top:0.08,h:0.82},
+ head:{x:-13,y:10,rx:4,ry:6},heads:[{x:-13,y:10,rx:4,ry:6},{x:12,y:12,rx:4,ry:6}],faceHead:0,
+ limbs:[{p:[[-13,16],[-13,46]],r:6},{p:[[12,18],[12,48]],r:6},
+        {p:[[-13,46],[-16,70],[-16,90]],r:3},{p:[[-13,46],[-10,70],[-10,90]],r:3},
+        {p:[[12,48],[9,72],[9,92]],r:3},{p:[[12,48],[15,72],[15,92]],r:3},
+        {p:[[-13,20],[-19,34],[-19,46]],r:2},{p:[[12,22],[18,36],[18,48]],r:2},
+        {p:[[-13,20],[0,26],[12,24]],r:2},{p:[[12,24],[2,32],[-4,36]],r:2}],
+ params:{focal:'等效 35–50mm',aperture:'f/2.8–f/4（两人都清晰）',shutter:'1/250s',iso:'ISO 100–400',height:'机位齐两人身高一半，平视',distance:'2.5–4 米',light:'柔光均匀，避免一人亮一人暗',time:'黄金时刻/阴天',wb:'日光'},
+ tips:[
+   {t:'关系感最重要',d:'对视、额头相抵、牵手、搭肩、背靠背，比并排看镜头自然得多。'},
+   {t:'错落站位',d:'一坐一站、一前一后、一高一低；个子差大用台阶/坐姿找平。'},
+   {t:'靠近一点',d:'两人身体略向内靠、头微相倾更亲密，别中间空一大块。'},
+   {t:'实时对齐',d:'双人时实时提示以其中一张脸为准，主要看整体站位与阴影是否吻合。'}
+ ]},
+/* ---------------- 通用 ---------------- */
+{id:'g_thirds',name:'三分主体',mode:'通用',kind:'scene',scheme:'negative',subj:[0.333,0.38],
+ params:{focal:'按题材；主体小可用中长焦',aperture:'f/4–f/8',shutter:'安全快门以上',iso:'ISO 100–400',height:'平视',distance:'—',light:'侧光更有立体感',time:'黄金时刻',wb:'自动/日光'},
+ tips:[{t:'主体上交点',d:'把主体放到三分线交点而非正中，画面更有张力与呼吸感。'},{t:'做减法',d:'移走与主体无关的杂物，或靠近、换角度、虚化来突出主体。'}]},
+{id:'g_leading',name:'引导线纵深',mode:'通用',kind:'scene',scheme:'leading',vp:[0.5,0.42],
+ params:{focal:'等效 24–35mm（广角强化纵深）',aperture:'f/8',shutter:'1/125s',iso:'ISO 100–400',height:'低机位强化线条',distance:'—',light:'侧光让线条有明暗',time:'全天，黄金时刻更佳',wb:'自动'},
+ tips:[{t:'线条引视线',d:'道路/河流/围栏/成排树木把视线从前景引向主体或远方。'},{t:'曲线更柔',d:'曲线比直线柔和有韵律，斜线比水平线更有动感。'}]},
+{id:'g_frame',name:'框架构图',mode:'通用',kind:'scene',scheme:'frame',inset:0.15,subj:[0.5,0.55],
+ params:{focal:'等效 35–50mm',aperture:'f/2.8–f/5.6',shutter:'1/125s',iso:'ISO 100–800',height:'平视',distance:'—',light:'框外亮、框内主体受光',time:'全天',wb:'自动'},
+ tips:[{t:'画中画',d:'用门洞/窗/树枝/拱桥做前景框包裹主体，集中视线、排除杂乱、增加层次。'},{t:'框不抢镜',d:'框架服务主体，别过亮过杂抢了主角。'}]},
+{id:'g_sym',name:'对称秩序',mode:'通用',kind:'scene',scheme:'symmetry',refl:0.58,reflLabel:'对称轴/倒影线',
+ params:{focal:'等效 24–50mm',aperture:'f/8',shutter:'1/125s',iso:'ISO 100–400',height:'机位放正中、水平',distance:'—',light:'均匀光',time:'蓝调/阴天',wb:'自动'},
+ tips:[{t:'中轴要正',d:'左右/上下对称传达安静、庄严、秩序；中轴务必对准，可轻微打破增趣味。'},{t:'端平手机',d:'开水平仪，别歪，对称才成立。'}]},
+/* ---------------- 风光 ---------------- */
+{id:'l_hori',name:'三分地平线·前景',mode:'风光',kind:'scene',scheme:'horizon',hy:0.62,sun:[0.82,0.2],
+ params:{focal:'等效 16–35mm（广角纳前景）',aperture:'f/8–f/11（前后都清晰）',shutter:'1/125s（三脚架可慢门）',iso:'ISO 100',height:'蹲低机位突出前景',distance:'—',light:'侧光/斜射光，太阳在侧后方',time:'黄金时刻 / 蓝调时刻',wb:'日光偏暖，或手动 5500–6000K'},
+ tips:[
+   {t:'地平线别居中',d:'放上下三分之一：突出天空压到下三分，突出地面/前景抬到上三分。'},
+   {t:'前景做层次',d:'风光显"平"多半缺前景。蹲低，近处加礁石/花草/枯木，形成前景—中景—远景三层。'},
+   {t:'抓时段',d:'黄金时刻光线斜射色彩浓；蓝调时刻天空宝蓝配亮起景物很高级；阴雨雾天反而出片。'}
+ ]},
+{id:'l_lead',name:'引导线纵深',mode:'风光',kind:'scene',scheme:'leading',vp:[0.46,0.4],
+ params:{focal:'等效 16–35mm',aperture:'f/8–f/11',shutter:'1/125s',iso:'ISO 100',height:'低机位贴近前景线条',distance:'—',light:'侧光强化线条明暗',time:'黄金时刻',wb:'日光'},
+ tips:[{t:'栈道/河流/小路',d:'把视线带进画面深处，制造纵深与故事感。'},{t:'主体放汇聚点',d:'在引导线汇聚处安排主体（一棵树、一个人、一座山）。'}]},
+{id:'l_refl',name:'对称倒影',mode:'风光',kind:'scene',scheme:'symmetry',refl:0.6,reflLabel:'水面倒影线',
+ params:{focal:'等效 24–50mm',aperture:'f/8',shutter:'1/60s（有风可更快）',iso:'ISO 100',height:'机位贴近水面',distance:'—',light:'顺侧光让倒影清晰',time:'日出日落 / 无风清晨',wb:'日光'},
+ tips:[{t:'贴水机位',d:'镜头尽量贴近水面，倒影更完整、对称更强。'},{t:'等无风',d:'水面平静时倒影最清晰；有风可等一阵或加快快门。'}]},
+{id:'l_neg',name:'极简留白',mode:'风光',kind:'scene',scheme:'negative',subj:[0.68,0.64],
+ params:{focal:'中长焦等效 85–200mm 压缩留白',aperture:'f/5.6–f/8',shutter:'1/250s',iso:'ISO 100',height:'平视',distance:'远',light:'雾/柔光最出意境',time:'清晨薄雾 / 阴天 / 雪后',wb:'偏冷更有清冷感'},
+ tips:[{t:'大留白衬小主体',d:'用天空/水面/雾/雪衬托一个小主体，营造孤寂辽阔诗意。'},{t:'要呼吸感',d:'主体可小放一角，但要留呼吸空间，别又小又乱。'}]},
+/* ---------------- 建筑 ---------------- */
+{id:'a_axis',name:'中轴对称',mode:'建筑',kind:'scene',scheme:'symmetry',refl:0.5,reflLabel:'中轴线',
+ params:{focal:'等效 24–35mm',aperture:'f/8',shutter:'1/125s',iso:'ISO 100–400',height:'机位正中、镜头水平',distance:'退到能收全立面',light:'均匀光 / 蓝调时刻',time:'蓝调时刻最佳',wb:'自动'},
+ tips:[{t:'中轴对准',d:'站在建筑正前方中轴线上，左右完全呼应，庄严有秩序。'},{t:'横平竖直',d:'开水平仪/网格，竖线绝不歪。'}]},
+{id:'a_persp',name:'仰拍汇聚线',mode:'建筑',kind:'scene',scheme:'perspective',hy:0.78,
+ params:{focal:'等效 16–24mm（超广角）',aperture:'f/8',shutter:'1/125s',iso:'ISO 100–400',height:'极低机位向上仰拍',distance:'贴近建筑',light:'侧光强化立面质感',time:'白天 / 蓝调',wb:'自动'},
+ tips:[{t:'低角度显雄伟',d:'贴近并仰拍，透视汇聚线最有力量、显高耸。'},{t:'竖线别倒',d:'仰拍易让竖线倾倒，尽量保持端正，或后期校正透视。'}]},
+{id:'a_frame',name:'门洞框架',mode:'建筑',kind:'scene',scheme:'frame',inset:0.18,subj:[0.5,0.5],
+ params:{focal:'等效 24–50mm',aperture:'f/5.6',shutter:'1/125s',iso:'ISO 100–800',height:'平视',distance:'—',light:'框内主体受光、框外压暗',time:'全天',wb:'自动'},
+ tips:[{t:'用建筑做框',d:'门洞、拱廊、天桥、窗框做前景框，集中视线、增加纵深与窥视感。'},{t:'明暗对比',d:'让框内亮、框外暗，主体自然跳出。'}]},
+{id:'a_fill',name:'立面填充',mode:'建筑',kind:'scene',scheme:'fill',cols:4,rows:5,
+ params:{focal:'等效 50–135mm（拍局部）',aperture:'f/8',shutter:'1/250s',iso:'ISO 100–400',height:'平视立面',distance:'—',light:'侧光突出重复节奏与质感',time:'白天',wb:'自动'},
+ tips:[{t:'走近拍局部',d:'玻璃幕墙、重复窗格立柱充满画面，拍抽象的节奏与几何。'},{t:'找规律与破例',d:'重复中有一处不同最抓眼。'}]},
+/* ---------------- 夜景 ---------------- */
+{id:'n_blue',name:'蓝调天际线',mode:'夜景',kind:'scene',scheme:'horizon',hy:0.68,
+ params:{focal:'等效 24–50mm',aperture:'f/8（灯光出星芒可 f/11）',shutter:'三脚架 + 数秒慢门',iso:'ISO 100（用三脚架压最低）',height:'稳固机位',distance:'远',light:'城市灯光 + 残余天光',time:'蓝调时刻（日落后约 20 分钟）',wb:'钨丝/手动 3800–4500K 保天空宝蓝'},
+ tips:[{t:'蓝调优于全黑',d:'天空尚蓝、灯光已亮的蓝调时刻，冷暖对比最好看。'},{t:'必上三脚架',d:'慢门几秒，手持必糊；开夜景模式或用三脚架 + 定时快门。'}]},
+{id:'n_refl',name:'水面倒影',mode:'夜景',kind:'scene',scheme:'symmetry',refl:0.58,reflLabel:'水面倒影线',
+ params:{focal:'等效 24–50mm',aperture:'f/8',shutter:'慢门 1–5s',iso:'ISO 100',height:'贴近水面',distance:'—',light:'利用灯光在水面的倒影',time:'蓝调/夜晚',wb:'手动 4000K'},
+ tips:[{t:'湿地/水面做对称',d:'雨后湿地、湖面、玻璃都能倒影灯光，制造对称与色彩。'},{t:'慢门抹平水纹',d:'几秒慢门让水面如镜，倒影更干净。'}]},
+{id:'n_trail',name:'车流光轨',mode:'夜景',kind:'scene',scheme:'leading',vp:[0.5,0.5],
+ params:{focal:'等效 24–50mm',aperture:'f/8–f/11',shutter:'慢门 5–20s',iso:'ISO 100',height:'三脚架 + 天桥/高处俯拍',distance:'远',light:'车流灯光',time:'日落后蓝调到夜晚',wb:'手动 4000K'},
+ tips:[{t:'慢门拉光轨',d:'5–20 秒曝光把车灯拉成流动光轨，沿引导线充满动感。'},{t:'必须三脚架',d:'任何抖动都会毁掉长曝光；用定时或音量键快门避免手触震动。'}]},
+{id:'n_bokeh',name:'霓虹散景',mode:'夜景',kind:'scene',scheme:'bokeh',hy:0.6,
+ params:{focal:'等效 50–85mm',aperture:'f/1.8–f/2.8（最大光圈）',shutter:'1/60s 以上',iso:'ISO 400–1600',height:'平视',distance:'靠近主体、背景远',light:'霓虹/灯串作背景',time:'夜晚',wb:'按现场；暖调更氛围'},
+ tips:[{t:'大光圈化光斑',d:'把霓虹虚化成圆形光斑作前景/背景，梦幻有氛围。'},{t:'主体要亮',d:'对主体测光并适当补光，别让脸黑成一团。'}]},
+/* ---------------- 打卡 ---------------- */
+{id:'c_inter',name:'人景互动',mode:'打卡',kind:'scene',scheme:'interact',
+ params:{focal:'等效 24–50mm',aperture:'f/2.8–f/5.6',shutter:'1/250s',iso:'ISO 100–400',height:'平视或略低',distance:'3–5 米',light:'侧光，人脸有光',time:'黄金时刻 / 避开正午',wb:'自动'},
+ tips:[{t:'做出互动',d:'走在巷子里、坐在台阶上、指向地标——让人和景发生关系，而非并排合影。'},{t:'避人流',d:'错开高峰（一早或临近打烊），或用大光圈/慢门虚化人群。'}]},
+{id:'c_frame',name:'前景框地标',mode:'打卡',kind:'scene',scheme:'frame',inset:0.16,subj:[0.5,0.5],
+ params:{focal:'等效 24–50mm',aperture:'f/4–f/5.6',shutter:'1/250s',iso:'ISO 100–400',height:'平视',distance:'—',light:'地标受光、前景框略暗',time:'黄金/蓝调',wb:'自动'},
+ tips:[{t:'找前景框',d:'用门洞、树叶、窗、拱门框住地标，比正面怼更有层次和高级感。'},{t:'别大头贴',d:'天空占比大时加地面前景，避免"大头贴+空背景"。'}]},
+{id:'c_low',name:'低机位仰拍',mode:'打卡',kind:'scene',scheme:'perspective',hy:0.8,
+ params:{focal:'等效 16–35mm',aperture:'f/5.6–f/8',shutter:'1/250s',iso:'ISO 100–400',height:'极低机位/贴地仰拍',distance:'贴近',light:'侧逆光勾轮廓',time:'白天 / 黄金',wb:'自动'},
+ tips:[{t:'蹲低仰拍',d:'低机位让地标更高大、人更显腿长，气势十足。'},{t:'竖线端正',d:'开水平仪，仰拍也别让主体歪斜。'}]},
+{id:'c_tele',name:'长焦压缩',mode:'打卡',kind:'scene',scheme:'horizon',hy:0.5,
+ params:{focal:'等效 85–200mm（手机长焦/3–5×）',aperture:'f/4–f/5.6',shutter:'1/500s（长焦易抖）',iso:'ISO 100–800',height:'平视',distance:'远离地标',light:'顺侧光',time:'黄金时刻',wb:'自动'},
+ tips:[{t:'退远用长焦',d:'长焦压缩空间，让人和地标"贴"在一起、背景更满，远胜自拍杆正面怼。'},{t:'端稳',d:'长焦放大抖动，快门要快、双手夹紧或用支撑。'}]}
 ];
+
+var PARAM_LABELS=[['focal','等效焦段'],['aperture','光圈'],['shutter','快门'],['iso','ISO'],['height','机位高度'],['distance','拍摄距离'],['light','光线'],['time','最佳时段'],['wb','白平衡']];
 
 var video=document.getElementById('video');
 var overlay=document.getElementById('overlay');
@@ -359,17 +452,21 @@ var gateErr=document.getElementById('gateErr');
 var state={stream:null,facing:'environment',
   guides:{thirds:true,golden:false,diag:false,center:false,spiral:false},
   mode:'通用', levelOn:false, lastShot:null, lastAnalysis:null, portraitPopped:false,
-  template:null, live:false, faceDetector:null, rtRunning:false};
+  template:null, live:false, faceDetector:null, rtRunning:false,
+  vw:360,vh:640,faceTargetPx:null};
 
 /* ---------- layout ---------- */
 function layout(){
   var w=window.innerWidth,h=window.innerHeight;
   var ar=(video.videoWidth&&video.videoHeight)?video.videoWidth/video.videoHeight:3/4;
   var vw,vh; if(w/h>ar){vw=w;vh=w/ar;}else{vh=h;vw=h*ar;}
+  vw=Math.round(vw);vh=Math.round(vh);
   video.style.width=vw+'px';video.style.height=vh+'px';
   overlay.setAttribute('width',vw);overlay.setAttribute('height',vh);
-  overlay.setAttribute('viewBox','0 0 100 100');
+  overlay.setAttribute('viewBox','0 0 '+vw+' '+vh);
+  overlay.setAttribute('preserveAspectRatio','none');
   overlay.style.width=vw+'px';overlay.style.height=vh+'px';
+  state.vw=vw;state.vh=vh;
   drawGuides();
 }
 window.addEventListener('resize',layout);
@@ -390,11 +487,10 @@ function setMode(k){
   Array.prototype.forEach.call(modesEl.children,function(c){c.className='chip'+(c.dataset.mode===k?' on':'');});
   var m=MODES.filter(function(x){return x.k===k;})[0];
   if(m){ ['thirds','golden','diag','center','spiral'].forEach(function(g){state.guides[g]=m.guides.indexOf(g)>=0;}); syncGuideChips(); }
-  // 模板行仅在人像模式显示；离开人像时清空模板并停掉实时
-  var isPortrait=(k==='人像');
-  document.getElementById('templates').classList.toggle('show',isPortrait);
-  document.getElementById('btnLive').style.display=isPortrait?'':'none';
-  if(!isPortrait){state.template=null;setLive(false);syncTemplateChips();}
+  // 每个模式都有自己的模板；切换模式时清空模板并重建标签
+  state.template=null;setLive(false);
+  document.getElementById('templates').classList.add('show');
+  buildTemplateChips();updateLiveBtn();
   if(k==='人像'&&!state.portraitPopped){state.portraitPopped=true;openTips();}
   drawGuides();
 }
@@ -416,17 +512,19 @@ document.getElementById('btnGuideAll').onclick=function(){
   syncGuideChips();drawGuides();
 };
 
-/* ---------- template chips (人像姿势模板) ---------- */
+/* ---------- template chips (每模式的构图/姿势模板) ---------- */
 var tplEl=document.getElementById('templates');
+function templatesForMode(k){return TEMPLATES.filter(function(t){return t.mode===k;});}
 function buildTemplateChips(){
   tplEl.innerHTML='';
   var none=document.createElement('div');
-  none.className='chip on';none.textContent='✕ 无模板';none.dataset.tpl='';
+  none.className='chip'+(state.template?'':' on');none.textContent='✕ 无模板';none.dataset.tpl='';
   none.onclick=function(){selectTemplate(null);};
   tplEl.appendChild(none);
-  TEMPLATES.forEach(function(t){
+  templatesForMode(state.mode).forEach(function(t){
     var c=document.createElement('div');
-    c.className='chip';c.textContent=t.name;c.dataset.tpl=t.id;
+    c.className='chip'+(state.template&&state.template.id===t.id?' on':'');
+    c.textContent=t.name;c.dataset.tpl=t.id;
     c.onclick=function(){selectTemplate(t.id);};
     tplEl.appendChild(c);
   });
@@ -436,92 +534,215 @@ function syncTemplateChips(){
     c.className='chip'+(((c.dataset.tpl||null)===(state.template?state.template.id:null))?' on':'');
   });
 }
-function currentTemplate(){return state.template;}
 function selectTemplate(id){
-  if(!id){state.template=null;setLive(false);syncTemplateChips();drawGuides();return;}
+  if(!id){state.template=null;setLive(false);syncTemplateChips();drawGuides();updateLiveBtn();return;}
   var t=null;for(var i=0;i<TEMPLATES.length;i++)if(TEMPLATES[i].id===id)t=TEMPLATES[i];
   state.template=t;
-  syncTemplateChips();
+  if(t.kind!=='figure')setLive(false);   // 实时人脸对齐只对人像剪影有意义
+  syncTemplateChips();updateLiveBtn();
   drawGuides();
   showTemplateTips(t);
 }
+function updateLiveBtn(){
+  var b=document.getElementById('btnLive');
+  var show=(state.mode==='人像'&&state.template&&state.template.kind==='figure');
+  b.style.display=show?'':'none';
+  if(!show)b.classList.remove('on');
+}
 buildTemplateChips();
 
-/* ---------- draw overlay guides ---------- */
+/* ---------- draw overlay guides (像素坐标系) ---------- */
 var SVGNS='http://www.w3.org/2000/svg';
+var PHI=1.6180339887;
+function el(name,attrs){var e=document.createElementNS(SVGNS,name);if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function txt(x,y,s,size,col,anchor){var t=el('text',{x:x,y:y,fill:col||'rgba(255,255,255,.8)','font-size':size,'font-family':'-apple-system,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif','text-anchor':anchor||'middle','paint-order':'stroke',stroke:'rgba(0,0,0,.45)','stroke-width':size*0.16});t.textContent=s;return t;}
+
 function drawGuides(){
   while(overlay.firstChild)overlay.removeChild(overlay.firstChild);
-  var g=state.guides;
-  function line(x1,y1,x2,y2,col,w){var l=document.createElementNS(SVGNS,'line');
-    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-    l.setAttribute('stroke',col||'rgba(255,255,255,.55)');l.setAttribute('stroke-width',w||0.3);overlay.appendChild(l);}
+  var vw=state.vw,vh=state.vh,g=state.guides;
+  var dim=state.template?0.32:1;      // 有模板时压暗辅助线
+  var lw=Math.max(1,Math.min(vw,vh)*0.0025);
+  function line(x1,y1,x2,y2,col,w){overlay.appendChild(el('line',{x1:x1,y1:y1,x2:x2,y2:y2,stroke:col,'stroke-width':w||lw,opacity:dim}));}
   if(g.thirds){
-    [33.333,66.667].forEach(function(p){line(p,0,p,100,'rgba(255,255,255,.6)',0.3);line(0,p,100,p,'rgba(255,255,255,.6)',0.3);});
-    [[33.333,33.333],[66.667,33.333],[33.333,66.667],[66.667,66.667]].forEach(function(pt){
-      var c=document.createElementNS(SVGNS,'circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);
-      c.setAttribute('r',0.9);c.setAttribute('fill','rgba(255,204,0,.85)');overlay.appendChild(c);});
+    [1/3,2/3].forEach(function(p){line(p*vw,0,p*vw,vh,'rgba(255,255,255,.55)');line(0,p*vh,vw,p*vh,'rgba(255,255,255,.55)');});
+    [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].forEach(function(q){
+      overlay.appendChild(el('circle',{cx:q[0]*vw,cy:q[1]*vh,r:Math.min(vw,vh)*0.008,fill:'rgba(255,204,0,.9)',opacity:dim}));});
   }
-  if(g.golden){[38.2,61.8].forEach(function(p){line(p,0,p,100,'rgba(0,220,255,.6)',0.3);line(0,p,100,p,'rgba(0,220,255,.6)',0.3);});}
-  if(g.diag){line(0,0,100,100,'rgba(255,120,120,.6)',0.3);line(100,0,0,100,'rgba(255,120,120,.6)',0.3);
-    line(0,100,50,0,'rgba(255,120,120,.35)',0.25);line(100,100,50,0,'rgba(255,120,120,.35)',0.25);}
-  if(g.center){line(50,0,50,100,'rgba(255,255,255,.5)',0.3);line(0,50,100,50,'rgba(255,255,255,.5)',0.3);
-    line(46,50,54,50,'rgba(255,204,0,.9)',0.5);line(50,46,50,54,'rgba(255,204,0,.9)',0.5);}
-  if(g.spiral){var p=document.createElementNS(SVGNS,'path');p.setAttribute('d',spiralArcs());
-    p.setAttribute('fill','none');p.setAttribute('stroke','rgba(255,204,0,.75)');p.setAttribute('stroke-width',0.4);
-    p.setAttribute('vector-effect','non-scaling-stroke');overlay.appendChild(p);}
+  if(g.golden){[0.382,0.618].forEach(function(p){line(p*vw,0,p*vw,vh,'rgba(0,220,255,.6)');line(0,p*vh,vw,p*vh,'rgba(0,220,255,.6)');});}
+  if(g.diag){line(0,0,vw,vh,'rgba(255,120,120,.6)');line(vw,0,0,vh,'rgba(255,120,120,.6)');
+    line(0,vh,vw/2,0,'rgba(255,120,120,.35)');line(vw,vh,vw/2,0,'rgba(255,120,120,.35)');}
+  if(g.center){line(vw/2,0,vw/2,vh,'rgba(255,255,255,.5)');line(0,vh/2,vw,vh/2,'rgba(255,255,255,.5)');
+    var c=Math.min(vw,vh)*0.05;line(vw/2-c,vh/2,vw/2+c,vh/2,'rgba(255,204,0,.9)',lw*1.6);line(vw/2,vh/2-c,vw/2,vh/2+c,'rgba(255,204,0,.9)',lw*1.6);}
+  if(g.spiral){overlay.appendChild(el('path',{d:spiralPath(),fill:'none',stroke:'rgba(255,204,0,.8)','stroke-width':Math.max(1.4,lw*1.6),opacity:dim}));}
   drawTemplate();
 }
 
-/* ---------- 姿势模板阴影叠加 ---------- */
-function drawTemplate(){
-  var t=state.template;if(!t)return;
-  var grp=document.createElementNS(SVGNS,'g');
-  grp.setAttribute('opacity','0.5');
-  // 肢体：粗圆头折线，读起来像半透明人形阴影
-  t.limbs.forEach(function(pts){
-    var pl=document.createElementNS(SVGNS,'polyline');
-    pl.setAttribute('points',pts.map(function(p){return p[0]+','+p[1];}).join(' '));
-    pl.setAttribute('fill','none');
-    pl.setAttribute('stroke','#ffcc00');
-    pl.setAttribute('stroke-width','6');
-    pl.setAttribute('stroke-linecap','round');
-    pl.setAttribute('stroke-linejoin','round');
-    grp.appendChild(pl);
-  });
-  // 头
-  t.heads.forEach(function(h){
-    var c=document.createElementNS(SVGNS,'circle');
-    c.setAttribute('cx',h[0]);c.setAttribute('cy',h[1]);c.setAttribute('r',h[2]);
-    c.setAttribute('fill','#ffcc00');c.setAttribute('opacity','0.55');
-    grp.appendChild(c);
-  });
-  overlay.appendChild(grp);
-  // 实时对齐时画出目标人脸框
-  if(state.live&&t.face){
-    var fw=t.face.w, fh=t.face.w*1.3;
-    var r=document.createElementNS(SVGNS,'rect');
-    r.setAttribute('x',t.face.cx-fw/2);r.setAttribute('y',t.face.cy-fh/2);
-    r.setAttribute('width',fw);r.setAttribute('height',fh);
-    r.setAttribute('fill','none');r.setAttribute('stroke','#3ddc84');
-    r.setAttribute('stroke-width','0.6');r.setAttribute('stroke-dasharray','2 2');
-    r.setAttribute('vector-effect','non-scaling-stroke');
-    overlay.appendChild(r);
-  }
-}
-function spiralArcs(){
-  var rectH=100/1.6180339887, sx=0, sy=(100-rectH)/2, sw=100, sh=rectH, d='', first=true;
-  for(var i=0;i<8;i++){
+function spiralPath(){
+  var vw=state.vw,vh=state.vh,sw,sh;
+  if(vw/vh>=PHI){sh=vh;sw=vh*PHI;}else{sw=vw;sh=vw/PHI;}
+  var sx=(vw-sw)/2,sy=(vh-sh)/2,d='',first=true;
+  for(var i=0;i<9;i++){
     var s=Math.min(sw,sh);
     if(sw>=sh){
       if(i%4===0){var qx=sx+sw-s,qy=sy;d+=(first?'M':'L')+(qx+s)+' '+(qy+s)+' A'+s+' '+s+' 0 0 1 '+qx+' '+qy+' ';sw-=s;}
       else{var qx2=sx,qy2=sy;d+=(first?'M':'L')+qx2+' '+(qy2+s)+' A'+s+' '+s+' 0 0 1 '+(qx2+s)+' '+qy2+' ';sx+=s;sw-=s;}
-    } else {
+    }else{
       if(i%4===2){var qx3=sx,qy3=sy+sh-s;d+=(first?'M':'L')+(qx3+s)+' '+(qy3+s)+' A'+s+' '+s+' 0 0 1 '+qx3+' '+qy3+' ';sh-=s;}
       else{var qx4=sx,qy4=sy;d+=(first?'M':'L')+qx4+' '+qy4+' A'+s+' '+s+' 0 0 1 '+(qx4+s)+' '+(qy4+s)+' ';sy+=s;sh-=s;}
     }
     first=false;
   }
   return d||'M0 0';
+}
+
+/* ================= 模板渲染：人像剪影 / 景点构图示意 ================= */
+function drawTemplate(){
+  var t=state.template;if(!t)return;
+  if(t.kind==='figure')drawFigure(t);else drawScene(t);
+}
+
+/* ---- 照片级半透明人形剪影 ---- */
+function drawFigure(t){
+  var vw=state.vw,vh=state.vh,ph=t.place;
+  var H=ph.h*vh,s=H/100,cx=ph.cx*vw,top=ph.top*vh;
+  function PX(x){return cx+x*s;} function PY(y){return top+y*s;}
+  var defs=el('defs',{});
+  var lg=el('linearGradient',{id:'silG',gradientUnits:'userSpaceOnUse',x1:0,y1:top,x2:0,y2:top+H});
+  lg.appendChild(el('stop',{offset:'0','stop-color':'#ffffff','stop-opacity':'0.40'}));
+  lg.appendChild(el('stop',{offset:'0.5','stop-color':'#e8eeff','stop-opacity':'0.22'}));
+  lg.appendChild(el('stop',{offset:'1','stop-color':'#ffffff','stop-opacity':'0.12'}));
+  defs.appendChild(lg);
+  var fg=el('filter',{id:'silGlow',x:'-30%',y:'-30%',width:'160%',height:'160%'});
+  fg.appendChild(el('feGaussianBlur',{stdDeviation:(Math.min(vw,vh)*0.010).toFixed(2),result:'b'}));
+  var fm=el('feMerge',{});fm.appendChild(el('feMergeNode',{in:'b'}));fm.appendChild(el('feMergeNode',{in:'SourceGraphic'}));fg.appendChild(fm);
+  defs.appendChild(fg);
+  overlay.appendChild(defs);
+
+  var grp=el('g',{filter:'url(#silGlow)'});
+  var fill='url(#silG)',rim='rgba(255,255,255,.5)',rw=Math.max(1,Math.min(vw,vh)*0.0035);
+  // 躯干（带肩/腰/胯宽度的填充多边形）
+  if(t.torso&&t.torso.length){
+    var L=[],R=[];
+    t.torso.forEach(function(p){L.push([PX(p[0]-p[2]),PY(p[1])]);R.push([PX(p[0]+p[2]),PY(p[1])]);});
+    var d='M'+L[0][0]+' '+L[0][1];
+    for(var i=1;i<L.length;i++)d+=' L'+L[i][0]+' '+L[i][1];
+    for(var j=R.length-1;j>=0;j--)d+=' L'+R[j][0]+' '+R[j][1];
+    grp.appendChild(el('path',{d:d+' Z',fill:fill,stroke:rim,'stroke-width':rw,'stroke-linejoin':'round'}));
+  }
+  // 四肢（圆头锥形管）
+  (t.limbs||[]).forEach(function(l){
+    var pts=l.p.map(function(q){return PX(q[0]).toFixed(1)+','+PY(q[1]).toFixed(1);}).join(' ');
+    grp.appendChild(el('polyline',{points:pts,fill:'none',stroke:fill,'stroke-width':(l.r*2*s).toFixed(2),'stroke-linecap':'round','stroke-linejoin':'round'}));
+  });
+  // 头
+  var heads=t.heads||[t.head];
+  heads.forEach(function(h){
+    grp.appendChild(el('ellipse',{cx:PX(h.x),cy:PY(h.y),rx:h.rx*s,ry:h.ry*s,fill:fill,stroke:rim,'stroke-width':rw}));
+  });
+  overlay.appendChild(grp);
+  // 记录实时对齐用的目标人脸框（px）
+  var fh=heads[t.faceHead||0]||heads[0];
+  state.faceTargetPx={cx:PX(fh.x),cy:PY(fh.y),w:fh.rx*2*s*1.2};
+  // 目标人脸框（绿色虚线）
+  if(state.live){
+    var w=fh.rx*2*s*1.35,hgt=w*1.25;
+    overlay.appendChild(el('rect',{x:PX(fh.x)-w/2,y:PY(fh.y)-hgt/2,width:w,height:hgt,fill:'none',stroke:'#3ddc84','stroke-width':Math.max(1.4,rw*1.4),'stroke-dasharray':'6 5',rx:w*0.18}));
+  }
+}
+
+/* ---- 景点构图示意 ---- */
+function drawScene(t){
+  var vw=state.vw,vh=state.vh,sch=t.scheme,u=Math.min(vw,vh);
+  var fs=Math.max(11,u*0.032), acc='rgba(255,204,0,.95)', soft='rgba(255,255,255,.72)';
+  function band(y0,y1,label,col){
+    overlay.appendChild(el('rect',{x:0,y:y0*vh,width:vw,height:(y1-y0)*vh,fill:col||'rgba(255,255,255,.05)'}));
+    if(label)overlay.appendChild(txt(vw*0.5,(y0+y1)/2*vh,label,fs,soft));
+  }
+  function hline(f,col,w){overlay.appendChild(el('line',{x1:0,y1:f*vh,x2:vw,y2:f*vh,stroke:col,'stroke-width':w||Math.max(1.4,u*0.004)}));}
+  function vline(f,col,w){overlay.appendChild(el('line',{x1:f*vw,y1:0,x2:f*vw,y2:vh,stroke:col,'stroke-width':w||Math.max(1.4,u*0.004)}));}
+  function sun(cx,cy,r){ // 光线方向箭头
+    overlay.appendChild(el('circle',{cx:cx,cy:cy,r:r,fill:'none',stroke:acc,'stroke-width':Math.max(1.4,u*0.004)}));
+    for(var a=0;a<360;a+=45){var rad=a*Math.PI/180;
+      overlay.appendChild(el('line',{x1:cx+Math.cos(rad)*r*1.25,y1:cy+Math.sin(rad)*r*1.25,x2:cx+Math.cos(rad)*r*1.7,y2:cy+Math.sin(rad)*r*1.7,stroke:acc,'stroke-width':Math.max(1.2,u*0.003)}));}
+  }
+  function marker(fx,fy,label){
+    overlay.appendChild(el('circle',{cx:fx*vw,cy:fy*vh,r:u*0.028,fill:'none',stroke:acc,'stroke-width':Math.max(1.6,u*0.004)}));
+    overlay.appendChild(el('circle',{cx:fx*vw,cy:fy*vh,r:u*0.006,fill:acc}));
+    if(label)overlay.appendChild(txt(fx*vw,fy*vh-u*0.05,label,fs,acc));
+  }
+
+  if(sch==='horizon'){
+    var hy=t.hy||0.62;
+    band(0,hy,'天空 / 远景');band(hy,hy+(1-hy)*0.45,'中景');band(hy+(1-hy)*0.45,1,'前景（加礁石/花草做层次）','rgba(255,255,255,.08)');
+    hline(hy,'rgba(0,220,255,.9)',Math.max(2,u*0.006));
+    overlay.appendChild(txt(vw*0.5,hy*vh-fs*0.6,'地平线 '+Math.round(hy*100)+'%',fs*0.9,'rgba(0,220,255,.95)'));
+    if(t.sun)sun(t.sun[0]*vw,t.sun[1]*vh,u*0.05);
+  }
+  else if(sch==='leading'){
+    var vx=(t.vp?t.vp[0]:0.5)*vw,vy=(t.vp?t.vp[1]:0.42)*vh;
+    overlay.appendChild(el('line',{x1:0,y1:vh,x2:vx,y2:vy,stroke:acc,'stroke-width':Math.max(1.6,u*0.004)}));
+    overlay.appendChild(el('line',{x1:vw,y1:vh,x2:vx,y2:vy,stroke:acc,'stroke-width':Math.max(1.6,u*0.004)}));
+    overlay.appendChild(el('line',{x1:0,y1:vh*0.72,x2:vx,y2:vy,stroke:'rgba(255,204,0,.5)','stroke-width':Math.max(1.2,u*0.003)}));
+    overlay.appendChild(el('line',{x1:vw,y1:vh*0.72,x2:vx,y2:vy,stroke:'rgba(255,204,0,.5)','stroke-width':Math.max(1.2,u*0.003)}));
+    marker(vx/vw,vy/vh,'视觉汇聚点·放主体');
+    overlay.appendChild(txt(vw*0.5,vh*0.9,'引导线（道路/河流/栈道）把视线引向深处',fs*0.9,soft));
+  }
+  else if(sch==='symmetry'){
+    vline(0.5,'rgba(0,220,255,.9)',Math.max(2,u*0.006));
+    var ry=t.refl||0.6;hline(ry,'rgba(255,255,255,.4)',Math.max(1.4,u*0.004));
+    overlay.appendChild(txt(vw*0.5,ry*vh-fs*0.6,t.reflLabel||'倒影/对称轴',fs*0.9,soft));
+    overlay.appendChild(txt(vw*0.5,vh*0.12,'中轴要正·左右呼应',fs,acc));
+    overlay.appendChild(el('path',{d:'M'+(vw*0.5-u*0.06)+' '+(vh*0.5)+' L'+(vw*0.5)+' '+(vh*0.5-u*0.03)+' L'+(vw*0.5+u*0.06)+' '+(vh*0.5),fill:'none',stroke:acc,'stroke-width':Math.max(1.2,u*0.003),opacity:.6}));
+  }
+  else if(sch==='perspective'){
+    vline(0.5,'rgba(255,255,255,.3)');
+    [[0.18,0.30],[0.82,0.30],[0.30,0.30],[0.70,0.30]].forEach(function(p){
+      overlay.appendChild(el('line',{x1:p[0]*vw,y1:vh,x2:(0.5+(p[0]-0.5)*0.35)*vw,y2:0,stroke:acc,'stroke-width':Math.max(1.3,u*0.003),opacity:.75}));});
+    hline(t.hy||0.72,'rgba(0,220,255,.8)',Math.max(1.8,u*0.005));
+    overlay.appendChild(txt(vw*0.5,vh*0.1,'仰拍·竖线保持不歪（开水平仪）',fs,acc));
+    overlay.appendChild(txt(vw*0.5,(t.hy||0.72)*vh+fs*1.2,'低机位显雄伟',fs*0.9,soft));
+  }
+  else if(sch==='frame'){
+    var ins=t.inset||0.14;
+    overlay.appendChild(el('rect',{x:ins*vw,y:ins*vh,width:(1-2*ins)*vw,height:(1-2*ins)*vh,fill:'none',stroke:acc,'stroke-width':Math.max(2,u*0.005),rx:u*0.02}));
+    overlay.appendChild(txt(vw*0.5,ins*vh-fs*0.5,'前景做框（门洞/拱廊/树枝）',fs*0.9,soft));
+    marker(t.subj?t.subj[0]:0.5,t.subj?t.subj[1]:0.55,'主体');
+  }
+  else if(sch==='negative'){
+    overlay.appendChild(el('rect',{x:0,y:0,width:vw,height:vh,fill:'rgba(255,255,255,.03)'}));
+    marker(t.subj?t.subj[0]:0.68,t.subj?t.subj[1]:0.66,'小主体');
+    overlay.appendChild(txt(vw*0.35,vh*0.28,'大面积留白（天空/水/雾）',fs,soft));
+    overlay.appendChild(txt(vw*0.5,vh*0.9,'留白要有呼吸感·别又小又乱',fs*0.9,soft));
+  }
+  else if(sch==='diagonal'){
+    overlay.appendChild(el('line',{x1:0,y1:vh,x2:vw,y2:t.flip?vh:0,stroke:acc,'stroke-width':Math.max(2,u*0.005)}));
+    overlay.appendChild(el('line',{x1:0,y1:vh*0.55,x2:vw*0.6,y2:0,stroke:'rgba(255,204,0,.45)','stroke-width':Math.max(1.2,u*0.003)}));
+    marker(0.38,0.62,'主体沿对角线');
+    overlay.appendChild(txt(vw*0.5,vh*0.12,'对角线·更有动感张力',fs,soft));
+  }
+  else if(sch==='bokeh'){
+    hline(t.hy||0.6,'rgba(255,255,255,.35)');
+    for(var i=0;i<7;i++){var bx=(0.08+i*0.14)*vw,by=(0.12+((i*37)%50)/100*0.5)*vh,br=u*(0.03+((i*13)%5)/100);
+      overlay.appendChild(el('circle',{cx:bx,cy:by,r:br,fill:'rgba(255,180,60,.14)',stroke:'rgba(255,200,120,.35)','stroke-width':Math.max(1,u*0.002)}));}
+    marker(0.5,0.66,'对亮部测光·主体');
+    overlay.appendChild(txt(vw*0.5,vh*0.92,'大光圈把灯光虚化成光斑作前景',fs*0.9,soft));
+  }
+  else if(sch==='interact'){
+    overlay.appendChild(el('rect',{x:0.06*vw,y:0.42*vh,width:0.34*vw,height:0.5*vh,fill:'rgba(255,255,255,.06)',stroke:acc,'stroke-width':Math.max(1.4,u*0.003),rx:u*0.02}));
+    overlay.appendChild(txt(0.23*vw,0.4*vh,'人',fs,acc));
+    overlay.appendChild(el('rect',{x:0.56*vw,y:0.16*vh,width:0.38*vw,height:0.6*vh,fill:'rgba(255,255,255,.06)',stroke:'rgba(0,220,255,.8)','stroke-width':Math.max(1.4,u*0.003),rx:u*0.02}));
+    overlay.appendChild(txt(0.75*vw,0.14*vh,'地标/景',fs,'rgba(0,220,255,.9)'));
+    overlay.appendChild(el('line',{x1:0.40*vw,y1:0.6*vh,x2:0.56*vw,y2:0.5*vh,stroke:acc,'stroke-width':Math.max(1.6,u*0.004),'stroke-dasharray':'6 5'}));
+    overlay.appendChild(txt(vw*0.5,vh*0.94,'让人和景发生互动，而不是并排合影',fs*0.9,soft));
+  }
+  else if(sch==='fill'){
+    var cols=t.cols||4,rows=t.rows||5;
+    for(var c=1;c<cols;c++)vline(c/cols,'rgba(255,204,0,.4)',Math.max(1,u*0.002));
+    for(var r=1;r<rows;r++)hline(r/rows,'rgba(255,204,0,.4)',Math.max(1,u*0.002));
+    overlay.appendChild(txt(vw*0.5,vh*0.5,'走近·让立面/纹理填满画面',fs,soft));
+  }
+  // 光线方向标记（通用）
+  if(t.sun&&sch!=='horizon')sun(t.sun[0]*vw,t.sun[1]*vh,u*0.05);
 }
 
 /* ---------- camera ---------- */
@@ -583,17 +804,105 @@ function openTips(){
   document.getElementById('tipsBody').innerHTML=html;
   openSheet('tipsSheet');
 }
+/* ================= 微动画引擎（SMIL 循环，离线） ================= */
+var AC='#ffcc00',AW='rgba(255,255,255,.75)',ACY='#00dcff',AGR='#3ddc84',AD='rgba(255,255,255,.28)';
+function person(x,feetY,h,col,w){ // 简笔人：头+身+腿，脚在 feetY，高 h
+  var hy=feetY-h, hr=h*0.13;
+  return '<circle cx="'+x+'" cy="'+(hy+hr)+'" r="'+hr+'" fill="'+col+'"/>'
+    +'<line x1="'+x+'" y1="'+(hy+hr*2)+'" x2="'+x+'" y2="'+(feetY-h*0.42)+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>'
+    +'<line x1="'+x+'" y1="'+(feetY-h*0.42)+'" x2="'+(x-h*0.10)+'" y2="'+feetY+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>'
+    +'<line x1="'+x+'" y1="'+(feetY-h*0.42)+'" x2="'+(x+h*0.10)+'" y2="'+feetY+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>';
+}
+var ANIMS={
+ lowcam:function(){return '<line x1="6" y1="82" x2="114" y2="82" stroke="'+AD+'"/>'
+   +'<g transform="translate(82,82)"><g>'+person(0,0,58,AW,4)+'<animateTransform attributeName="transform" type="scale" values="1 1;1.05 1.16;1 1" dur="3s" repeatCount="indefinite"/></g></g>'
+   +'<g><rect x="14" y="0" width="20" height="13" rx="3" fill="'+AC+'"/><circle cx="38" cy="6.5" r="3.5" fill="'+AC+'"/>'
+   +'<animateTransform attributeName="transform" type="translate" values="0 18;0 60;0 18" dur="3s" repeatCount="indefinite"/></g>'
+   +'<path d="M24 30 L24 52" stroke="'+AC+'" stroke-width="2" marker-end="none"/><path d="M20 46 L24 54 L28 46" fill="none" stroke="'+AC+'" stroke-width="2"/>';},
+ eye:function(){return '<line x1="10" y1="30" x2="110" y2="30" stroke="'+ACY+'" stroke-width="1.5" stroke-dasharray="4 3"/>'
+   +'<circle cx="60" cy="46" r="20" fill="none" stroke="'+AW+'" stroke-width="2"/>'
+   +'<circle cx="53" cy="42" r="2.6" fill="'+AW+'"/><circle cx="67" cy="42" r="2.6" fill="'+AW+'"/>'
+   +'<g><line x1="44" y1="42" x2="76" y2="42" stroke="'+AC+'" stroke-width="2"/>'
+   +'<animateTransform attributeName="transform" type="translate" values="0 6;0 0;0 0;0 6" dur="3s" repeatCount="indefinite"/></g>'
+   +'<text x="60" y="16" fill="'+ACY+'" font-size="9" text-anchor="middle">上三分线</text>';},
+ lean:function(){return '<line x1="96" y1="8" x2="96" y2="82" stroke="'+AD+'" stroke-width="3"/>'
+   +'<g transform="translate(70,82)"><g>'+person(0,0,56,AW,4)
+   +'<animateTransform attributeName="transform" type="rotate" values="0;10;10;0" dur="3s" repeatCount="indefinite"/></g></g>';},
+ sit:function(){return '<line x1="6" y1="60" x2="70" y2="60" stroke="'+AD+'" stroke-width="3"/><line x1="70" y1="60" x2="70" y2="82" stroke="'+AD+'" stroke-width="3"/>'
+   +'<g><circle cx="40" cy="26" r="7" fill="'+AW+'"/><path d="M40 33 L44 58 L64 60 L64 80" fill="none" stroke="'+AW+'" stroke-width="4" stroke-linecap="round"/>'
+   +'<animateTransform attributeName="transform" type="rotate" values="-8 44 58;0 44 58;0 44 58;-8 44 58" dur="3s" repeatCount="indefinite"/></g>';},
+ walk:function(){return '<line x1="6" y1="82" x2="114" y2="82" stroke="'+AD+'"/>'
+   +'<circle cx="60" cy="26" r="7" fill="'+AW+'"/><line x1="60" y1="33" x2="60" y2="58" stroke="'+AW+'" stroke-width="4" stroke-linecap="round"/>'
+   +'<g><line x1="60" y1="58" x2="48" y2="82" stroke="'+AW+'" stroke-width="4" stroke-linecap="round"/><animateTransform attributeName="transform" type="rotate" values="-18 60 58;18 60 58;-18 60 58" dur="1.2s" repeatCount="indefinite"/></g>'
+   +'<g><line x1="60" y1="58" x2="72" y2="82" stroke="'+AW+'" stroke-width="4" stroke-linecap="round"/><animateTransform attributeName="transform" type="rotate" values="18 60 58;-18 60 58;18 60 58" dur="1.2s" repeatCount="indefinite"/></g>';},
+ interact:function(){return person(38,80,52,AW,4)+person(82,80,52,AW,4)
+   +'<g><line x1="46" y1="46" x2="74" y2="46" stroke="'+AC+'" stroke-width="2.5" stroke-linecap="round"/>'
+   +'<animate attributeName="opacity" values="0;1;1;0" dur="2.4s" repeatCount="indefinite"/></g>'
+   +'<g><animateTransform attributeName="transform" type="translate" values="-6 0;4 0;-6 0" dur="2.4s" repeatCount="indefinite"/>'+person(38,80,52,'rgba(0,0,0,0)',0)+'</g>';},
+ subject3:function(){return '<line x1="40" y1="6" x2="40" y2="84" stroke="'+AD+'"/><line x1="80" y1="6" x2="80" y2="84" stroke="'+AD+'"/><line x1="6" y1="30" x2="114" y2="30" stroke="'+AD+'"/><line x1="6" y1="60" x2="114" y2="60" stroke="'+AD+'"/>'
+   +'<circle cx="40" cy="30" r="4" fill="'+AC+'"/><circle cx="80" cy="30" r="4" fill="'+AC+'"/><circle cx="40" cy="60" r="4" fill="'+AC+'"/><circle cx="80" cy="60" r="4" fill="'+AC+'"/>'
+   +'<circle cx="60" cy="45" r="7" fill="'+AW+'"><animate attributeName="cx" values="60;80;80;60" dur="3s" repeatCount="indefinite"/><animate attributeName="cy" values="45;30;30;45" dur="3s" repeatCount="indefinite"/></circle>';},
+ leading:function(){return '<g><line x1="6" y1="84" x2="60" y2="34" stroke="'+AC+'" stroke-width="2"><animate attributeName="x2" values="6;60;60;6" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y2" values="84;34;34;84" dur="2.6s" repeatCount="indefinite"/></line>'
+   +'<line x1="114" y1="84" x2="60" y2="34" stroke="'+AC+'" stroke-width="2"><animate attributeName="x2" values="114;60;60;114" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y2" values="84;34;34;84" dur="2.6s" repeatCount="indefinite"/></line></g>'
+   +'<circle cx="60" cy="34" r="5" fill="'+AW+'"><animate attributeName="r" values="3;6;3" dur="2.6s" repeatCount="indefinite"/></circle>';},
+ frame:function(){return '<rect x="10" y="8" width="100" height="74" fill="none" stroke="'+AC+'" stroke-width="2.5" rx="4"><animate attributeName="x" values="2;10;10;2" dur="3s" repeatCount="indefinite"/><animate attributeName="y" values="2;8;8;2" dur="3s" repeatCount="indefinite"/><animate attributeName="width" values="116;100;100;116" dur="3s" repeatCount="indefinite"/><animate attributeName="height" values="86;74;74;86" dur="3s" repeatCount="indefinite"/></rect>'
+   +'<circle cx="60" cy="45" r="8" fill="'+AW+'"/>';},
+ sym:function(){return '<line x1="60" y1="4" x2="60" y2="86" stroke="'+ACY+'" stroke-width="2"/>'
+   +'<path d="M60 20 L36 40 L36 70 L60 78 Z" fill="'+AW+'"/>'
+   +'<path d="M60 20 L84 40 L84 70 L60 78 Z" fill="'+AW+'" opacity="0"><animate attributeName="opacity" values="0;0.9;0.9;0" dur="2.6s" repeatCount="indefinite"/></path>';},
+ horizon:function(){return '<rect x="0" y="0" width="120" height="90" fill="rgba(120,160,200,.15)"/>'
+   +'<g><line x1="0" y1="45" x2="120" y2="45" stroke="'+ACY+'" stroke-width="2.5"><animate attributeName="y1" values="45;62;62;45" dur="3.4s" repeatCount="indefinite"/><animate attributeName="y2" values="45;62;62;45" dur="3.4s" repeatCount="indefinite"/></line></g>'
+   +'<line x1="0" y1="30" x2="120" y2="30" stroke="'+AD+'" stroke-dasharray="4 3"/><line x1="0" y1="60" x2="120" y2="60" stroke="'+AD+'" stroke-dasharray="4 3"/>'
+   +'<circle cx="30" cy="74" r="5" fill="'+AW+'"/>';},
+ neg:function(){return '<rect x="0" y="0" width="120" height="90" fill="rgba(255,255,255,.05)"/>'
+   +'<circle cx="60" cy="45" r="16" fill="'+AW+'"><animate attributeName="cx" values="60;92;92;60" dur="3.4s" repeatCount="indefinite"/><animate attributeName="cy" values="45;66;66;45" dur="3.4s" repeatCount="indefinite"/><animate attributeName="r" values="16;5;5;16" dur="3.4s" repeatCount="indefinite"/></circle>';},
+ persp:function(){return '<line x1="20" y1="86" x2="44" y2="6" stroke="'+AC+'" stroke-width="2"/><line x1="100" y1="86" x2="76" y2="6" stroke="'+AC+'" stroke-width="2"/><line x1="40" y1="86" x2="52" y2="6" stroke="'+AC+'" stroke-width="1.4" opacity=".6"/><line x1="80" y1="86" x2="68" y2="6" stroke="'+AC+'" stroke-width="1.4" opacity=".6"/>'
+   +'<g><rect x="46" y="70" width="28" height="14" rx="3" fill="'+AW+'"/><animateTransform attributeName="transform" type="translate" values="0 0;0 -6;0 0" dur="2.6s" repeatCount="indefinite"/></g>';},
+ fill:function(){var s='';for(var r=0;r<3;r++)for(var c=0;c<4;c++){var i=r*4+c;s+='<rect x="'+(12+c*25)+'" y="'+(12+r*24)+'" width="21" height="20" fill="'+AW+'" opacity="0"><animate attributeName="opacity" values="0;0.8;0.8;0" dur="2.4s" begin="'+(i*0.12)+'s" repeatCount="indefinite"/></rect>';}return s;},
+ bokeh:function(){var s='',pos=[[20,24,9],[48,18,7],[80,26,10],[100,20,6],[34,40,6],[66,42,8],[96,44,7]];for(var i=0;i<pos.length;i++){s+='<circle cx="'+pos[i][0]+'" cy="'+pos[i][1]+'" r="'+pos[i][2]+'" fill="rgba(255,180,60,.35)" stroke="rgba(255,200,120,.6)"><animate attributeName="r" values="'+pos[i][2]+';'+(pos[i][2]*1.5)+';'+pos[i][2]+'" dur="2.2s" begin="'+(i*0.2)+'s" repeatCount="indefinite"/></circle>';}return s+person(60,84,40,AW,4);},
+ tele:function(){return '<g><rect x="0" y="0" width="120" height="90" fill="rgba(120,160,200,.18)"/><circle cx="26" cy="30" r="10" fill="rgba(255,255,255,.25)"/><circle cx="96" cy="26" r="8" fill="rgba(255,255,255,.25)"/><animateTransform attributeName="transform" type="scale" values="1 1;1.5 1.5;1 1" dur="3s" repeatCount="indefinite" additive="replace" transform-origin="60 45"/></g>'
+   +person(60,80,44,AW,4);}
+};
+var ANIM_FOR={stand:'lowcam',half:'eye',lean:'lean',sit:'sit',walk:'walk',couple:'interact',
+ g_thirds:'subject3',g_leading:'leading',g_frame:'frame',g_sym:'sym',
+ l_hori:'horizon',l_lead:'leading',l_refl:'sym',l_neg:'neg',
+ a_axis:'sym',a_persp:'persp',a_frame:'frame',a_fill:'fill',
+ n_blue:'horizon',n_refl:'sym',n_trail:'leading',n_bokeh:'bokeh',
+ c_inter:'interact',c_frame:'frame',c_low:'lowcam',c_tele:'tele'};
+function renderAnim(key,cls){
+  var f=ANIMS[key];if(!f)return '';
+  return '<svg class="'+(cls||'animSvg')+'" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid meet">'+f()+'</svg>';
+}
+function shortCap(d){var s=d.split('。')[0];if(s.length>26)s=s.slice(0,26)+'…';return s+'。';}
+
 function showTemplateTips(t){
   if(!t)return;
-  document.getElementById('tipsTitle').textContent=t.name+' · 姿势要点';
+  document.getElementById('tipsTitle').textContent=t.name;
   var html='';
-  html+='<div class="card" style="font-size:12.5px;line-height:1.6;opacity:.85;">让主体对准画面里的<b style="color:var(--accent)">黄色人形阴影</b>摆好姿势即可。';
-  if(t.face)html+='开「🎯 实时」后，绿框是脸该在的位置，会提示你靠近/退后/抬高/压低。';
-  html+='</div>';
-  t.tips.forEach(function(x){html+='<div class="card"><div class="sec" style="margin-top:0">'+x.t+'</div><div style="font-size:13.5px;line-height:1.65;opacity:.92">'+x.d+'</div></div>';});
+  // 主视觉：循环小动画 + 一句话
+  html+='<div class="card" style="padding:10px 10px 8px;">'+renderAnim(ANIM_FOR[t.id],'animSvg')
+      +'<div style="text-align:center;font-size:13px;font-weight:700;color:var(--accent);margin-top:7px;">'
+      +(t.kind==='figure'?'把人对准画面里的半透明剪影':'按画面里的构图示意摆景')+'</div></div>';
+  // 参数配方（表格，扫读不费眼）
+  if(t.params){
+    html+='<div class="sec">拍摄参数</div><div class="card" style="padding:6px 8px;"><table>';
+    PARAM_LABELS.forEach(function(pl){
+      if(t.params[pl[0]]!=null)html+='<tr><th style="width:30%;white-space:nowrap;">'+pl[1]+'</th><td>'+t.params[pl[0]]+'</td></tr>';
+    });
+    html+='</table></div>';
+  }
+  // 要点：默认只一行，点开才看全文
+  html+='<div class="sec">要点 · 点一下展开</div>';
+  t.tips.forEach(function(x){
+    html+='<div class="card tipRow"><div class="tipHead"><b>'+x.t+'</b><span class="tipC">'+shortCap(x.d)+'</span></div><div class="tipFull">'+x.d+'</div></div>';
+  });
   document.getElementById('tipsBody').innerHTML=html;
   openSheet('tipsSheet');
 }
+document.getElementById('tipsBody').addEventListener('click',function(e){
+  var row=e.target.closest?e.target.closest('.tipRow'):null;
+  if(row)row.classList.toggle('open');
+});
 // fill manual content
 document.getElementById('manualList').innerHTML=MANUAL_LIST.map(function(x){return '<li>'+x+'</li>';}).join('');
 document.getElementById('manualAppendix').innerHTML=MANUAL_APPENDIX.map(function(x){return '<li>'+x+'</li>';}).join('');
@@ -896,24 +1205,23 @@ function rtLoop(ts){
   }).catch(function(){/* 某些帧检测失败，忽略 */});
 }
 
-/* 把视频帧里的矩形映射到 overlay 的 0-100 坐标（考虑 object-fit:cover 裁剪） */
+/* 把视频帧里的矩形映射到 overlay 的像素坐标（考虑 object-fit:cover 裁剪） */
 function videoToOverlay(rect){
   var vw=video.videoWidth,vh=video.videoHeight;
-  var dispW=overlay.clientWidth||parseFloat(overlay.style.width)||1;
-  var dispH=overlay.clientHeight||parseFloat(overlay.style.height)||1;
+  var dispW=state.vw,dispH=state.vh;
   var scale=Math.max(dispW/vw,dispH/vh);
   var rendW=vw*scale,rendH=vh*scale;
   var offX=(dispW-rendW)/2,offY=(dispH-rendH)/2;
-  var x=rect.x*scale+offX,y=rect.y*scale+offY,w=rect.width*scale,h=rect.height*scale;
-  return {cx:(x+w/2)/dispW*100,cy:(y+h/2)/dispH*100,w:w/dispW*100};
+  var x=rect.x*scale+offX,y=rect.y*scale+offY,w=rect.width*scale;
+  return {cx:x+w/2,cy:y+rect.height*scale/2,w:w};
 }
 
 function computeHint(o){
-  var t=state.template;
-  if(!t||!t.face){setHint('info','按黄色阴影对齐主体即可');return;}
-  var face=t.face;
+  var face=state.faceTargetPx;
+  if(!face){setHint('info','按剪影对齐主体即可');return;}
+  var u=Math.min(state.vw,state.vh);
   var dx=o.cx-face.cx, dy=o.cy-face.cy, ratio=o.w/face.w;
-  var tol=4.5, msgs=[], level='warn';
+  var tol=u*0.05, msgs=[], level='warn';
   if(ratio<0.82)msgs.push('人太远 · 向前走/靠近');
   else if(ratio>1.22)msgs.push('人太近 · 向后退一点');
   if(dy<-tol)msgs.push('脸偏高 · 压低主体或抬高机位');

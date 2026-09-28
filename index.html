@@ -452,7 +452,7 @@ var gateErr=document.getElementById('gateErr');
 var state={stream:null,facing:'environment',
   guides:{thirds:true,golden:false,diag:false,center:false,spiral:false},
   mode:'通用', levelOn:false, lastShot:null, lastAnalysis:null, portraitPopped:false,
-  template:null, live:false, faceDetector:null, rtRunning:false,
+  template:null, live:false, faceDetector:null, useFD:false, rtRunning:false,
   vw:360,vh:640,faceTargetPx:null};
 
 /* ---------- layout ---------- */
@@ -1054,7 +1054,7 @@ function analyze(canvas,mode){
     else add('ok','地平线基本水平。');
     if(on('horizon')){
       if(Math.abs(hpos-0.5)<0.08){score-=8;add('warn','地平线在画面正中间，容易平分。想突出天空压到下三分，突出地面/前景抬到上三分。');}
-      else if(Math.abs(hpos-1/3)<0.1||Math.abs(hpos-2/3)<0.1)add('ok','地平线贴近三分线，天地比例舒服。');
+      else if(Math.abs(hpos-1/3)<0.1||Math.abs(hpos-2/3)<0.1)add('ok','地平线贴近三分线，天地比例舒服。');}
     }
   }
 
@@ -1069,7 +1069,7 @@ function analyze(canvas,mode){
   if(on('clutter')){
     if(clutter>20){score-=8;add('warn','背景偏杂乱（边缘能量高）。杂乱背景是废片第一杀手——靠近主体、换角度或用大光圈/人像模式虚化。');}
     else if(clutter>=10){score-=3;add('info','背景略杂，留意"做减法"：能移走的杂物移走，或换角度/虚化来突出主体。');}
-    else if(clutter<7)add('ok','背景干净，主体突出。');
+    else if(clutter<7)add('ok','背景干净，主体突出。');}
   }
 
   // --- negative space (留白) ---
@@ -1173,12 +1173,10 @@ function setLive(on){
   var b=document.getElementById('btnLive');
   b.classList.toggle('on',on);
   if(on){
-    var fd=initFaceDetector();
-    if(!fd){b.classList.remove('on');state.live=false;
-      setHint('bad','此浏览器不支持实时人脸检测（需 Chrome/Edge）。可只按黄色阴影对齐。');
-      state.rtRunning=false;drawGuides();return;}
+    state.useFD=!!initFaceDetector();   // 有 FaceDetector 用它，没有走肤色兜底
     state.rtRunning=true;drawGuides();
     lastRt=0;requestAnimationFrame(rtLoop);
+    if(!state.useFD)setHint('info','已启用近似实时对齐（本地肤色检测，无需联网）');
   } else {
     state.rtRunning=false;clearHint();drawGuides();
   }
@@ -1189,52 +1187,18 @@ document.getElementById('btnLive').onclick=function(){
 };
 
 var lastRt=0;
-function rtLoop(ts){
-  if(!state.rtRunning)return;
-  requestAnimationFrame(rtLoop);
-  if(ts-lastRt<180)return; // ~5fps，省电省算力
-  lastRt=ts;
-  if(!state.faceDetector||video.readyState<2||!state.template)return;
-  state.faceDetector.detect(video).then(function(faces){
-    if(!state.rtRunning)return;
-    if(!faces||!faces.length){setHint('warn','没检测到脸 · 让主体正对镜头、光线充足');return;}
-    // 取面积最大的人脸
-    var f=faces[0],fa=faces[0].boundingBox.width*faces[0].boundingBox.height;
-    faces.forEach(function(x){var a=x.boundingBox.width*x.boundingBox.height;if(a>fa){fa=a;f=x;}});
-    computeHint(videoToOverlay(f.boundingBox));
-  }).catch(function(){/* 某些帧检测失败，忽略 */});
-}
-
-/* 把视频帧里的矩形映射到 overlay 的像素坐标（考虑 object-fit:cover 裁剪） */
-function videoToOverlay(rect){
-  var vw=video.videoWidth,vh=video.videoHeight;
-  var dispW=state.vw,dispH=state.vh;
-  var scale=Math.max(dispW/vw,dispH/vh);
-  var rendW=vw*scale,rendH=vh*scale;
-  var offX=(dispW-rendW)/2,offY=(dispH-rendH)/2;
-  var x=rect.x*scale+offX,y=rect.y*scale+offY,w=rect.width*scale;
-  return {cx:x+w/2,cy:y+rect.height*scale/2,w:w};
-}
-
-function computeHint(o){
-  var face=state.faceTargetPx;
-  if(!face){setHint('info','按剪影对齐主体即可');return;}
-  var u=Math.min(state.vw,state.vh);
-  var dx=o.cx-face.cx, dy=o.cy-face.cy, ratio=o.w/face.w;
-  var tol=u*0.05, msgs=[], level='warn';
-  if(ratio<0.82)msgs.push('人太远 · 向前走/靠近');
-  else if(ratio>1.22)msgs.push('人太近 · 向后退一点');
-  if(dy<-tol)msgs.push('脸偏高 · 压低主体或抬高机位');
-  else if(dy>tol)msgs.push('脸偏低 · 抬高主体或放低机位');
-  if(dx<-tol)msgs.push('偏左 · 向画面右移');
-  else if(dx>tol)msgs.push('偏右 · 向画面左移');
-  if(!msgs.length){level='ok';msgs.push('对齐得很好 · 保持不动，按快门！');}
-  setHint(level,msgs.join(' ｜ '));
-}
-
-setMode('通用');
-layout();
-})();
-</script>
-</body>
-</html>
+/* 无 FaceDetector 时的兜底：本地肤色（YCbCr）连通域，找最靠上的一大块当"头"。
+   纯 canvas 运算，不联网、不依赖任何库。返回视频原始像素坐标里的 {x,y,width,height}。 */
+var detCanvas=document.createElement('canvas');
+var detCtx=detCanvas.getContext('2d',{willReadFrequently:true});
+var DW=72,DH=96;
+function fallbackHead(){
+  if(video.readyState<2||!video.videoWidth)return null;
+  detCanvas.width=DW;detCanvas.height=DH;
+  detCtx.drawImage(video,0,0,DW,DH);
+  var img;
+  try{img=detCtx.getImageData(0,0,DW,DH);}catch(e){return null;}
+  var d=img.data, mask=new Uint8Array(DW*DH), n=0;
+  for(var i=0,p=0;i<d.length;i+=4,p++){
+    var r=d[i],g=d[i+1],b=d[i+2];
+    var Y=0.299*r+0.587*g+0.114*b;
